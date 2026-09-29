@@ -24,7 +24,7 @@ public final class BFConfig {
 
         builder.push("enchanting");
         ENCHANTING_MODE = builder
-                .comment("off | restricted | full")
+                .comment("off | restricted | full. Tags enchanting_allowed and enchanting_denied apply only to restricted")
                 .define("mode", "restricted", value -> value instanceof String s && EnchantPolicy.Mode.parse(s).isPresent());
         DISABLE_BOOKS = builder
                 .comment("With mode = \"full\" books are disabled in any case")

@@ -55,6 +55,14 @@ class EnchantPolicyTest {
     }
 
     @Test
+    void exceptionTagsAreIgnoredOutsideRestricted() {
+        Subject allowedT2 = new Subject(Forged.BLUEPRINT_TIER, true, false, false);
+        Subject deniedVanilla = new Subject(Forged.NONE, false, true, false);
+        assertEquals(Verdict.DENY_FULL, EnchantPolicy.evaluate(Mode.FULL, false, allowedT2));
+        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.OFF, false, deniedVanilla));
+    }
+
+    @Test
     void offAllowsEverything() {
         for (Subject subject : new Subject[]{VANILLA_IRON_SWORD, FORGED_T2, FORGED_UNKNOWN_TIER, BOOK}) {
             assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.OFF, true, subject));
