@@ -1,0 +1,29 @@
+{
+  "itemGroup.blueprintforge": "Blueprint Forge",
+  "item.blueprintforge.blueprint": "Пустой бланк чертежа",
+  "item.blueprintforge.blueprint.unknown": "Неизвестный чертёж",
+  "block.blueprintforge.blueprint_archive": "Архив чертежей",
+
+  "tier.blueprintforge.tier1": "Кустарный",
+  "tier.blueprintforge.tier2": "Ремесленный",
+
+  "blueprint.blueprintforge.guild_blade": "Цеховой клинок",
+  "blueprint.blueprintforge.guild_blade.lore": "Цеховой образец железного меча",
+
+  "tooltip.blueprintforge.blank": "Документ пуст и ничего не произведёт",
+  "tooltip.blueprintforge.class.original": "Оригинал: не расходуется",
+  "tooltip.blueprintforge.class.copy": "Копия: осталось прогонов — %s",
+  "tooltip.blueprintforge.class.ancient": "Древний: один прогон",
+  "tooltip.blueprintforge.class.fragment": "Фрагмент: часть сборки оригинала",
+  "tooltip.blueprintforge.tier": "Тир: %s",
+  "tooltip.blueprintforge.tier.unknown": "неизвестен",
+  "tooltip.blueprintforge.forged": "Сделано по чертежу: %s, %s",
+
+  "gui.blueprintforge.archive.speed": "Скорость сети: %s об/мин",
+  "gui.blueprintforge.archive.no_rotation": "Нет вращения: Архив стоит",
+  "gui.blueprintforge.archive.empty": "Положите оригинал или копию",
+
+  "message.blueprintforge.enchanting.restricted": "Чары остаются для кустарных вещей. Этот предмет сделан по чертежу",
+  "message.blueprintforge.enchanting.full": "Стол зачарований на этой сборке не работает",
+  "message.blueprintforge.enchanting.books_disabled": "Книги чар на этой сборке отключены"
+}

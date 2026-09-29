@@ -1,0 +1,16 @@
+{
+  "blueprintforge:tier1": {
+    "display": { "translate": "tier.blueprintforge.tier1" },
+    "color": "#9E9E9E",
+    "requires_blueprint": false,
+    "global_durability_multiplier": 1.0,
+    "fitting_slots": 0
+  },
+  "blueprintforge:tier2": {
+    "display": { "translate": "tier.blueprintforge.tier2" },
+    "color": "#4CAF50",
+    "requires_blueprint": true,
+    "global_durability_multiplier": 1.1,
+    "fitting_slots": 0
+  }
+}

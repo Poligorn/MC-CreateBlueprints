@@ -1,0 +1,10 @@
+{
+  "parent": "minecraft:block/orientable_with_bottom",
+  "textures": {
+    "top": "blueprintforge:block/blueprint_archive_top",
+    "bottom": "blueprintforge:block/blueprint_archive_bottom",
+    "front": "blueprintforge:block/blueprint_archive_front",
+    "side": "blueprintforge:block/blueprint_archive_side",
+    "particle": "blueprintforge:block/blueprint_archive_side"
+  }
+}
