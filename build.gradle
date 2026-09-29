@@ -89,12 +89,12 @@ neoForge {
 }
 
 dependencies {
-    // Create 6.0.11 is published only as the full jar, which jar-in-jars Ponder, Flywheel and Registrate
-    // for runtime; they are declared compileOnly so our code compiles against the same versions.
-    implementation("com.simibubi.create:create-${minecraft_version}:${create_version}") { transitive = false }
-    compileOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}") { transitive = false }
+    // The slim jar does not jar-in-jar Ponder, Flywheel and Registrate, so they are declared explicitly.
+    implementation("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false }
+    implementation("net.createmod.ponder:ponder-neoforge:${ponder_version}") { transitive = false }
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
-    compileOnly("com.tterrag.registrate:Registrate:${registrate_version}")
+    runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
+    implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
