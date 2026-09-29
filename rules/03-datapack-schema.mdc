@@ -1,0 +1,190 @@
+---
+description: Контракт datapack и серверного конфига Blueprint Forge — blueprint, sources, research, rolls, assembly, tiers, рецепты Create, toml.
+globs:
+  - "**/data/**/*.json"
+  - "**/*.toml"
+alwaysApply: false
+---
+
+# Схема данных
+
+Всё содержимое мода, которое модпакер захочет поменять, лежит здесь. Java читает эти файлы и не держит вторую копию баланса. Битый файл пропускается, сервер живёт, ошибка содержит путь и текст кодека.
+
+Корень:
+
+```
+data/<namespace>/
+├── blueprint/
+├── blueprint_source/
+├── blueprint_research/
+├── blueprint_roll/
+├── blueprint_assembly/
+├── tier/
+└── recipe/
+```
+
+Эталон мода — namespace `blueprintforge`. Чужой namespace имеет ту же схему и переопределяет записи по id так, как это умеет datapack.
+
+Серверные переключатели, не контент: `config/blueprintforge-server.toml`.
+
+## `blueprint/*.json`
+
+Определение документа. Игрок получает не этот файл, а стек предмета `blueprintforge:blueprint` с компонентом, собранным из определения.
+
+Обязательные поля: `tier`, `class`, `display`, `tags`.
+
+- `tier` — число 1…5. Должен существовать тир.
+- `class` — `original | copy | ancient | fragment`. В источниках мира эталон кладёт оригиналы, древние и фрагменты. Класс `copy` в определении описывает правила копии; в лут готовая копия не кладётся.
+- `target` — id предмета, который производится. Нет предмета в сборке — определение не активируется (debug). Для `fragment` поле можно опустить.
+- `output.attributes` — ванильные модификаторы: `mode` = `add | multiply_base | multiply_total`, `value` — число. Это единственный источник бонуса урона.
+- `output.durability_multiplier` — множитель чертежа в формуле прочности.
+- `output.count` — размер выпуска, обычно 1.
+- `material_efficiency` / `time_efficiency` — объекты `{ min, max, step }`. Эталон ME: 0, 30, 3. Эталон TE: 0, 40, 5.
+- `copy` — нет у `ancient` и `fragment`. Поля: `enabled`, `default_runs`, `max_runs`, `me_penalty`, `te_penalty`, `copy_cost[]` (`item` или `fluid`, `count` / `amount`), `cost_scaling`. Дополнительное поле `allow_from_copy`, по умолчанию false.
+- `fitting_slots` — необязательное переопределение тира. До фичи фитингов игроку не показывается.
+- `display.name` и строки лора — текстовые компоненты (`text` или `translate`).
+- `display.item_model` — необязательная модель поверх модели класса.
+- `display.lore_line` — короткая строка класса.
+- `tooltip_flags` — подмножество `show_runs`, `show_me_te`, `show_target`, `show_author`.
+- `tags` — id тегов определений, например `blueprintforge:weapons`, `blueprintforge:tier2`. По ним работает `accept_tag`.
+
+Поле `copy` у оригинала описывает, какие копии он печатает. Сам оригинал при этом не становится копией.
+
+## `tier/tiers.json`
+
+Один файл на namespace, объект id → рамка.
+
+Поля рамки: `display`, `color` (`#RRGGBB`), `requires_blueprint`, `global_durability_multiplier`, `fitting_slots`.
+
+Эталон:
+
+| id | display | color | requires_blueprint | прочность | слоты |
+|---|---|---|---|---|---|
+| `blueprintforge:tier1` | Кустарный | `#9E9E9E` | false | 1.00 | 0 |
+| `blueprintforge:tier2` | Ремесленный | `#4CAF50` | true | 1.10 | 0 |
+| `blueprintforge:tier3` | Промышленный | `#2196F3` | true | 1.25 | 1 |
+| `blueprintforge:tier4` | Артельный | `#9C27B0` | true | 1.50 | 2 |
+| `blueprintforge:tier5` | Древний | `#FF9800` | true | 2.00 | 3 |
+
+У T1 нет глобального множителя силы сверх 1. Урон тиров 2–4 в этот файл не писать: он лежит в `output.attributes` каждого чертежа, иначе бонус применится дважды.
+
+## `blueprint_research/*.json`
+
+Политика сервера, не свойство одного предмета.
+
+- `applies_to` — список тегов или id чертежей
+- `me_step_cost`, `te_step_cost` — предметы и жидкости
+- `stress_per_step` — эталон 256
+- `time_per_step_ticks` — эталон 400
+- `allow_research_on_copy` — эталон false
+- `copy_time_per_run_ticks` — эталон 80, длительность копирования на один прогон копии
+- `copy_stress` — эталон 256
+
+Несколько файлов могут покрывать разные теги. Если к одному чертежу подходят два профиля, загрузчик выбирает более узкий (id бьёт тег, более длинный тег бьёт короткий) и пишет warning, если узкость неразличима. Не усреднять цены двух профилей.
+
+## `blueprint_source/*.json`
+
+Пул появления одного чертежа. У чертежа может быть несколько файлов источников.
+
+Общие поля: `blueprint`, `weight`, `conditions`, `sources[]`.
+
+`conditions`: `dimensions[]`, `biomes[]` (допустимы теги биомов), `difficulty[]`, `min_y`, `max_y`, `requires_modpack_tag`. Тег сборки, которого нет, выключает весь пул без ошибки: так автор пака включает ветку одной строкой. Отсутствие поля `requires_modpack_tag` значит «включён».
+
+Типы `sources[]`:
+
+| type | Обязательные поля | Смысл |
+|---|---|---|
+| `loot_injection` | `target_tables[]`, `add_entries`, `chance` | Добавить запись в готовые лут-таблицы |
+| `mob_drop` | `entities[]`, `chance`, `requires_player_kill` | Дроп с сущности. `looting_bonus` необязателен |
+| `structure_container` | `structures[]`, `container_tag`, `count_range`, `chance` | Контейнер структуры, лут при открытии игроком |
+| `world_spawn` | `placement`, `block`, `rarity_per_chunk` | Пьедестал в мире. `despawn_after_ticks`, `cooldown_per_structure_instance_ticks` |
+| `fishing` | `chance` | Удочка. `luck_scale` необязателен |
+
+Неизвестный `type` пропускается с error. Реализация типов раскатывается по фазам roadmap; нереализованный тип в эталонном паке этой фазы не используется. Чужой datapack с будущим типом не валит сервер.
+
+`rarity.multiplier` из конфига масштабирует `chance` и `rarity_per_chunk`.
+
+## `blueprint_roll/*.json`
+
+Таблицы древних. Применение — v1.1. До этой фазы каталог `blueprint_roll` не читается и не валит загрузку. С появлением кодека битая таблица пропускается так же, как битый чертёж.
+
+- `entries[]`: `weight`, `type` (`attribute | enchantment_emulation | unique_name | nothing`)
+- `attribute` + `mode` + `range` для числовых
+- `downside` — такой же объект модификатора, необязателен у записи, обязателен по дизайну у боевых плюсов эталона
+- `effect` и `range` для эмуляции эффекта
+- `name_pool` для уникального имени
+- `flavour` — текстовый компонент для `nothing`
+- `guarantee_min_positive` — эталон 1
+
+Эффект эмуляции — не ванильное зачарование и не пишется в таблицу чар предмета. Иначе обходятся ограничения стола.
+
+## `blueprint_assembly/*.json`
+
+- `output_blueprint` — id определения оригинала
+- `fragments_required` — эталон пути T3: 12
+- `fragment_item` — id определения фрагмента
+- `machine` — эталон `blueprintforge:blueprint_archive`
+- `process_time_ticks`
+- `extra_ingredients[]`
+- `one_time_per_chunk`
+- `announce_to_server`
+
+Собранный оригинал получает новый `instanceId`, ME и TE по `min` определения (0), прогоны `-1`.
+
+## Рецепты производства
+
+Рецепт остаётся рецептом Create. Нормативная форма ингредиента:
+
+```json
+{
+  "type": "blueprintforge:blueprint_slot",
+  "accept_tag": "blueprintforge:tier2",
+  "mode": "consume_on_use"
+}
+```
+
+Сахар, который загрузчик обязан принять и свернуть в ту же форму: верхнее поле рецепта `blueprint.accept_tag` / `blueprint.mode` плюс ключ `"item": "blueprintforge:blueprint_slot"`. После свёртки рецепт валиден для кодека Create.
+
+`result` по умолчанию — предмет `target` определения, которое лежало в слоте, со компонентом `forged`. Явный `result.item` в рецепте допустим, если модпаку нужен другой id; модификаторы чертежа всё равно накладываются.
+
+Рецепт без слота чертежа не может выдавать предмет с `forged`. Иначе верстак или чужой крафт обходит столп завода.
+
+## Серверный конфиг
+
+В файле только то, что фаза уже исполняет.
+
+```toml
+[enchanting]
+mode = "restricted" # off | restricted | full
+disable_books = false # при mode = "full" книги выключены в любом случае
+
+[rarity]
+multiplier = 1.0
+
+[fittings]
+enabled = false # до реализации фичи игнорируется, один warning
+
+[drops]
+allow_fake_players = false
+
+[transfer]
+confirm_timeout_seconds = 60
+```
+
+Имена, зарезервированные под v2, пока не читать и не писать в дефолтный файл: `ecology.rotate_sources_every_days`, `ecology.original_decay`, `ecology.decay_me_percent_per_week`.
+
+## Эталонный объём
+
+Эталон доказывает схему, а не заполняет сервер на 20 человек. Число оригиналов «40–60 в мире» — настройка источников и множителя редкости, не обязанность завести десятки файлов мечей.
+
+Объём MVP — один оригинал T2 и один источник `loot_injection` (см. дорожную карту). К v1.0 в эталоне достаточно:
+
+- три оригинала T2 разных семейств (оружие, инструмент, броня), чтобы атрибуты были общими
+- один оригинал T3, который собирается из фрагментов
+- один редкий оригинал T4
+- один профиль исследования
+- один файл тиров
+- источники только тех типов, которые фаза уже умеет
+- по одному производственному рецепту Create на выпускаемый предмет
+
+T5 и древние таблицы в эталоне появляются вместе с роллером.
