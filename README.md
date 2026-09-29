@@ -17,7 +17,7 @@
 | `./gradlew build` | Сборка jar и JUnit-тесты |
 | `./gradlew runGameTestServer` | Гейм-тесты в мире с Create, завершается кодом ошибки при провале |
 | `./gradlew runServer` | Dedicated-сервер в `run/` (нужен `run/eula.txt` с `eula=true`) |
-| `./gradlew runClient` | Клиент для ручной проверки |
+| `./gradlew runClient` | Клиент для ручной проверки. В мире с командами `/test run <имя>` строит сцену гейм-теста, например `/test run beltcarriesitemsthroughthearchive` — Архив на ленте с моторами |
 
 Гейм-тесты лежат в отдельном source set `src/gametest` и в jar не попадают. Там же тестовый datapack `blueprintforge_test` с намеренно битыми файлами, поэтому в dev-запусках в логе всегда есть три ошибки загрузки — так и задумано.
 
