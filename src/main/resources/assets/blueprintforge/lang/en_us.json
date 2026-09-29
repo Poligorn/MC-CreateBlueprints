@@ -1,0 +1,30 @@
+{
+  "itemGroup.blueprintforge": "Blueprint Forge",
+  "item.blueprintforge.blueprint": "Blank Blueprint",
+  "item.blueprintforge.blueprint.unknown": "Unknown Blueprint",
+  "block.blueprintforge.blueprint_archive": "Blueprint Archive",
+
+  "tier.blueprintforge.tier1": "Handmade",
+  "tier.blueprintforge.tier2": "Crafted",
+
+  "blueprint.blueprintforge.guild_blade": "Guild Blade",
+  "blueprint.blueprintforge.guild_blade.lore": "Workshop pattern for an iron sword",
+
+  "tooltip.blueprintforge.blank": "Empty document: it will not produce anything",
+  "tooltip.blueprintforge.class.original": "Original: never consumed",
+  "tooltip.blueprintforge.class.copy": "Copy: %s runs left",
+  "tooltip.blueprintforge.class.ancient": "Ancient: a single run",
+  "tooltip.blueprintforge.class.fragment": "Fragment: part of an original's assembly",
+  "tooltip.blueprintforge.tier": "Tier: %s",
+  "tooltip.blueprintforge.tier.unknown": "unknown",
+  "tooltip.blueprintforge.owner": "Owner: %s",
+  "tooltip.blueprintforge.forged": "Forged from %2$s, tier %1$s",
+
+  "gui.blueprintforge.archive.speed": "Network speed: %s RPM",
+  "gui.blueprintforge.archive.no_rotation": "No rotation: the Archive is idle",
+  "gui.blueprintforge.archive.empty": "Place an original or a copy",
+
+  "message.blueprintforge.enchanting.restricted": "Enchanting is for handmade things. This item is made from a blueprint",
+  "message.blueprintforge.enchanting.full": "The enchanting table does not work on this server",
+  "message.blueprintforge.enchanting.books_disabled": "Enchanted books are disabled on this server"
+}

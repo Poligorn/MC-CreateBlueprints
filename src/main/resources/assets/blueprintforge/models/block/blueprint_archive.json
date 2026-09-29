@@ -1,0 +1,50 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "wall": "blueprintforge:block/blueprint_archive_wall",
+    "inner": "blueprintforge:block/blueprint_archive_inner",
+    "edge": "blueprintforge:block/blueprint_archive_edge",
+    "top": "blueprintforge:block/blueprint_archive_top",
+    "particle": "blueprintforge:block/blueprint_archive_wall"
+  },
+  "elements": [
+    {
+      "name": "north wall",
+      "from": [0, -5, 0],
+      "to": [16, 16, 2],
+      "faces": {
+        "north": { "uv": [0, 0, 16, 16], "texture": "#wall" },
+        "south": { "uv": [0, 0, 16, 16], "texture": "#inner" },
+        "east": { "uv": [0, 0, 2, 16], "texture": "#edge" },
+        "west": { "uv": [14, 0, 16, 16], "texture": "#edge" },
+        "up": { "uv": [0, 0, 16, 2], "texture": "#edge", "cullface": "up" },
+        "down": { "uv": [0, 14, 16, 16], "texture": "#edge" }
+      }
+    },
+    {
+      "name": "south wall",
+      "from": [0, -5, 14],
+      "to": [16, 16, 16],
+      "faces": {
+        "south": { "uv": [0, 0, 16, 16], "texture": "#wall" },
+        "north": { "uv": [0, 0, 16, 16], "texture": "#inner" },
+        "east": { "uv": [14, 0, 16, 16], "texture": "#edge" },
+        "west": { "uv": [0, 0, 2, 16], "texture": "#edge" },
+        "up": { "uv": [0, 14, 16, 16], "texture": "#edge", "cullface": "up" },
+        "down": { "uv": [0, 0, 16, 2], "texture": "#edge" }
+      }
+    },
+    {
+      "name": "roof",
+      "from": [0, 10, 2],
+      "to": [16, 16, 14],
+      "faces": {
+        "up": { "uv": [0, 2, 16, 14], "texture": "#top", "cullface": "up" },
+        "down": { "uv": [0, 2, 16, 14], "texture": "#inner" },
+        "east": { "uv": [2, 0, 14, 6], "texture": "#edge" },
+        "west": { "uv": [2, 0, 14, 6], "texture": "#edge" }
+      }
+    }
+  ]
+}
