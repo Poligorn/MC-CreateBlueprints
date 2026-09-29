@@ -17,6 +17,7 @@
   "tooltip.blueprintforge.class.fragment": "Фрагмент: часть сборки оригинала",
   "tooltip.blueprintforge.tier": "Тир: %s",
   "tooltip.blueprintforge.tier.unknown": "неизвестен",
+  "tooltip.blueprintforge.owner": "Владелец: %s",
   "tooltip.blueprintforge.forged": "Сделано по чертежу «%2$s», тир %1$s",
 
   "gui.blueprintforge.archive.speed": "Скорость сети: %s об/мин",

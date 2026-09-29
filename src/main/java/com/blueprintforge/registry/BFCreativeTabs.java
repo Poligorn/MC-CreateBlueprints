@@ -1,9 +1,9 @@
 package com.blueprintforge.registry;
 
-import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.blueprintforge.BlueprintForge;
+import com.blueprintforge.data.BlueprintData;
 import com.blueprintforge.data.BlueprintRegistry;
 import com.blueprintforge.item.BlueprintItem;
 
@@ -13,7 +13,11 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-/** One stack per loaded definition, so a modpack author sees their datapack rather than a hardcoded list. */
+/**
+ * One stack per loaded definition, so a modpack author sees their datapack rather than a hardcoded list.
+ * The stacks are unissued templates; {@link com.blueprintforge.event.CreativeIssueHandler} gives each taken copy
+ * its own UUID and owner.
+ */
 public final class BFCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, BlueprintForge.MOD_ID);
 
@@ -23,7 +27,7 @@ public final class BFCreativeTabs {
             .displayItems((parameters, output) -> {
                 output.accept(BFItems.BLUEPRINT_ARCHIVE.get());
                 BlueprintRegistry.all().forEach((id, definition) ->
-                        output.accept(BlueprintItem.createInstance(id, definition, UUID.randomUUID())));
+                        output.accept(BlueprintItem.createInstance(id, definition, BlueprintData.UNISSUED)));
             })
             .build());
 

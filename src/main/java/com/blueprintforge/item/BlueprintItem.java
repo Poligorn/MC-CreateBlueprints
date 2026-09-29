@@ -13,7 +13,10 @@ import com.blueprintforge.registry.BFItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -42,10 +45,26 @@ public class BlueprintItem extends Item {
                 definition.clazz().initialRuns(copyRuns),
                 definition.materialEfficiencyOrFixed().min(),
                 definition.timeEfficiencyOrFixed().min(),
-                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty());
         ItemStack stack = new ItemStack(BFItems.BLUEPRINT.get());
         stack.set(BFComponents.BLUEPRINT.get(), data);
         return stack;
+    }
+
+    /**
+     * Turns a creative-tab template into a real instance owned by {@code owner}. Returns false if the stack
+     * is not a template. Owner is provenance only: the instance can still be dropped, traded or stolen.
+     */
+    public static boolean issueTemplate(ItemStack stack, @Nullable Player owner) {
+        BlueprintData data = stack.get(BFComponents.BLUEPRINT.get());
+        if (data == null || !data.isUnissued()) {
+            return false;
+        }
+        stack.set(BFComponents.BLUEPRINT.get(), data.issuedTo(UUID.randomUUID(),
+                Optional.ofNullable(owner).map(Player::getUUID),
+                Optional.ofNullable(owner).map(player -> player.getGameProfile().getName())));
+        return true;
     }
 
     @Override

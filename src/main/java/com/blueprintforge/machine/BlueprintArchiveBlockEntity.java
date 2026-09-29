@@ -36,9 +36,13 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
         super(BFBlocks.BLUEPRINT_ARCHIVE_ENTITY.get(), pos, state);
     }
 
-    /** The document slot takes an original or a copy; blanks, fragments and ancient blueprints stay out. */
+    /**
+     * The document slot takes an issued original or copy; blanks, fragments, ancient blueprints and
+     * creative templates without an instance id stay out.
+     */
     public static boolean acceptsDocument(ItemStack stack) {
         return BlueprintItem.data(stack)
+                .filter(data -> !data.isUnissued())
                 .map(data -> data.clazz() == BlueprintClass.ORIGINAL || data.clazz() == BlueprintClass.COPY)
                 .orElse(false);
     }

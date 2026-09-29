@@ -150,36 +150,39 @@ def metal_block():
     return img
 
 
-def archive_side():
+def archive_wall():
     img = metal_block()
-    for y in (5, 10):
-        for x in range(3, 13):
-            img[y][x] = METAL_DARK
+    rect(img, 3, 3, 12, 8, SLOT)
+    rect(img, 4, 4, 11, 7, PAPER)
+    for x in range(5, 11):
+        img[5][x] = INK_LIGHT
+    rect(img, 6, 11, 9, 12, BRASS)
     return img
 
 
-def archive_front():
-    img = metal_block()
-    rect(img, 3, 5, 12, 8, SLOT)
-    rect(img, 4, 6, 11, 7, PAPER)
-    rect(img, 6, 11, 9, 12, BRASS)
+def archive_inner():
+    img = canvas(METAL_DARK)
+    for y in (4, 8, 12):
+        for x in range(16):
+            img[y][x] = METAL
+    return img
+
+
+def archive_edge():
+    img = canvas(BRASS)
+    for y in range(16):
+        img[y][0] = BRASS_DARK
+        img[y][15] = BRASS_DARK
     return img
 
 
 def archive_top():
     img = canvas(BRASS)
     outline(img, 0, 0, 15, 15, BRASS_DARK)
-    rect(img, 3, 3, 12, 12, PAPER_SHADE)
-    outline(img, 3, 3, 12, 12, BRASS_DARK)
-    for y in (5, 7, 9):
-        for x in range(5, 11):
-            img[y][x] = INK_LIGHT
-    return img
-
-
-def archive_bottom():
-    img = metal_block()
-    rect(img, 5, 5, 10, 10, SLOT)
+    rect(img, 2, 2, 13, 13, METAL)
+    outline(img, 2, 2, 13, 13, BRASS_DARK)
+    # shaft opening in the roof
+    rect(img, 6, 6, 9, 9, SLOT)
     outline(img, 5, 5, 10, 10, BRASS_DARK)
     return img
 
@@ -234,9 +237,9 @@ if __name__ == "__main__":
     png(os.path.join(TEX, "item/blueprint_copy.png"), copy())
     png(os.path.join(TEX, "item/blueprint_ancient.png"), ancient())
     png(os.path.join(TEX, "item/blueprint_fragment.png"), fragment())
-    png(os.path.join(TEX, "block/blueprint_archive_side.png"), archive_side())
-    png(os.path.join(TEX, "block/blueprint_archive_front.png"), archive_front())
+    png(os.path.join(TEX, "block/blueprint_archive_wall.png"), archive_wall())
+    png(os.path.join(TEX, "block/blueprint_archive_inner.png"), archive_inner())
+    png(os.path.join(TEX, "block/blueprint_archive_edge.png"), archive_edge())
     png(os.path.join(TEX, "block/blueprint_archive_top.png"), archive_top())
-    png(os.path.join(TEX, "block/blueprint_archive_bottom.png"), archive_bottom())
     empty_structure()
     print("assets generated")

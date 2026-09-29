@@ -202,7 +202,7 @@ class BlueprintDataLoaderTest {
         BlueprintData data = new BlueprintData(UUID.randomUUID(), id("guild_blade"), BlueprintClass.COPY, id("tier2"),
                 Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), 7, 20, 30,
                 Optional.of(UUID.randomUUID()), Optional.of("Engineer"), Optional.empty(), Optional.empty(),
-                Optional.of(new CompoundTag()));
+                Optional.of(UUID.randomUUID()), Optional.of("Owner"), Optional.of(new CompoundTag()));
         JsonElement encoded = BlueprintData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow();
         assertEquals(data, BlueprintData.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow());
 
@@ -210,6 +210,23 @@ class BlueprintDataLoaderTest {
                 ResourceLocation.withDefaultNamespace("generic.attack_damage"), OutputModifier.Mode.MULTIPLY_TOTAL, 0.15, Optional.empty())));
         JsonElement forgedJson = ForgedItemData.CODEC.encodeStart(JsonOps.INSTANCE, forged).getOrThrow();
         assertEquals(forged, ForgedItemData.CODEC.parse(JsonOps.INSTANCE, forgedJson).getOrThrow());
+    }
+
+    @Test
+    void issuingATemplateSetsANewInstanceAndOwnerOnly() {
+        BlueprintData template = new BlueprintData(BlueprintData.UNISSUED, id("guild_blade"), BlueprintClass.ORIGINAL, id("tier2"),
+                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), -1, 0, 0,
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        assertTrue(template.isUnissued());
+
+        UUID instance = UUID.randomUUID();
+        UUID owner = UUID.randomUUID();
+        BlueprintData issued = template.issuedTo(instance, Optional.of(owner), Optional.of("Dev"));
+        assertFalse(issued.isUnissued());
+        assertEquals(instance, issued.instanceId());
+        assertEquals(Optional.of(owner), issued.ownerUuid());
+        assertEquals(Optional.of("Dev"), issued.ownerName());
+        assertEquals(template, issued.issuedTo(BlueprintData.UNISSUED, Optional.empty(), Optional.empty()));
     }
 
     @Test

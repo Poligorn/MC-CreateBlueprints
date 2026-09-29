@@ -1,8 +1,6 @@
 {
   "variants": {
-    "facing=north": { "model": "blueprintforge:block/blueprint_archive" },
-    "facing=east": { "model": "blueprintforge:block/blueprint_archive", "y": 90 },
-    "facing=south": { "model": "blueprintforge:block/blueprint_archive", "y": 180 },
-    "facing=west": { "model": "blueprintforge:block/blueprint_archive", "y": 270 }
+    "axis=x": { "model": "blueprintforge:block/blueprint_archive" },
+    "axis=z": { "model": "blueprintforge:block/blueprint_archive", "y": 90 }
   }
 }

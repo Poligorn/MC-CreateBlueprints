@@ -17,6 +17,7 @@
   "tooltip.blueprintforge.class.fragment": "Fragment: part of an original's assembly",
   "tooltip.blueprintforge.tier": "Tier: %s",
   "tooltip.blueprintforge.tier.unknown": "unknown",
+  "tooltip.blueprintforge.owner": "Owner: %s",
   "tooltip.blueprintforge.forged": "Forged from %2$s, tier %1$s",
 
   "gui.blueprintforge.archive.speed": "Network speed: %s RPM",

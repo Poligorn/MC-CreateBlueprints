@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import com.blueprintforge.client.BlueprintForgeClient;
 import com.blueprintforge.data.BlueprintDataLoader;
 import com.blueprintforge.data.BlueprintSyncPayload;
+import com.blueprintforge.event.CreativeIssueHandler;
 import com.blueprintforge.event.EnchantingHandler;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
@@ -51,6 +52,7 @@ public final class BlueprintForge {
         NeoForge.EVENT_BUS.addListener(BlueprintForge::addReloadListeners);
         NeoForge.EVENT_BUS.addListener(BlueprintForge::syncDefinitions);
         EnchantingHandler.register(NeoForge.EVENT_BUS);
+        CreativeIssueHandler.register(NeoForge.EVENT_BUS);
     }
 
     public static ResourceLocation id(String path) {
@@ -63,7 +65,9 @@ public final class BlueprintForge {
 
     private static void syncDefinitions(OnDatapackSyncEvent event) {
         BlueprintSyncPayload payload = BlueprintSyncPayload.current();
-        event.getRelevantPlayers().forEach(player -> PacketDistributor.sendToPlayer(player, payload));
+        event.getRelevantPlayers()
+                .filter(player -> player.connection.hasChannel(BlueprintSyncPayload.TYPE))
+                .forEach(player -> PacketDistributor.sendToPlayer(player, payload));
     }
 
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {

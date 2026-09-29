@@ -17,6 +17,16 @@ import com.blueprintforge.machine.BlueprintArchiveBlockEntity;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
 import com.simibubi.create.AllBlocks;
+import com.blueprintforge.event.CreativeIssueHandler;
+import com.blueprintforge.machine.BlueprintArchiveBlock;
+import com.blueprintforge.registry.BFCreativeTabs;
+import com.blueprintforge.registry.BFItems;
+import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
+import com.simibubi.create.content.kinetics.belt.BeltHelper;
+import com.simibubi.create.content.kinetics.belt.item.BeltConnectorItem;
+import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.phys.AABB;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -92,35 +102,95 @@ public final class BlueprintForgeGameTests {
         helper.succeed();
     }
 
+    private static final BlockPos BELT_START = new BlockPos(0, 1, 2);
+    private static final BlockPos BELT_END = new BlockPos(4, 1, 2);
+    private static final BlockPos ARCHIVE = new BlockPos(2, 2, 2);
+
+    /**
+     * A straight five-block belt along X with the Archive standing over its middle segment, like a Create tunnel.
+     * Optionally a creative motor drives the belt pulley, and another one sits on the Archive roof.
+     */
+    private static BlueprintArchiveBlockEntity archiveOnBelt(GameTestHelper helper, boolean driveBelt, boolean driveArchive) {
+        BlockState shaft = AllBlocks.SHAFT.getDefaultState().setValue(BlockStateProperties.AXIS, Direction.Axis.Z);
+        helper.setBlock(BELT_START, shaft);
+        helper.setBlock(BELT_END, shaft);
+        BeltConnectorItem.createBelts(helper.getLevel(), helper.absolutePos(BELT_START), helper.absolutePos(BELT_END));
+        if (driveBelt) {
+            helper.setBlock(BELT_START.north(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.SOUTH));
+        }
+        helper.setBlock(ARCHIVE, BFBlocks.BLUEPRINT_ARCHIVE.get().defaultBlockState().setValue(BlueprintArchiveBlock.AXIS, Direction.Axis.X));
+        if (driveArchive) {
+            helper.setBlock(ARCHIVE.above(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.DOWN));
+        }
+        return helper.getBlockEntity(ARCHIVE);
+    }
+
     @GameTest(template = EMPTY)
-    public static void archiveTurnsOnCreateNetwork(GameTestHelper helper) {
-        BlockPos motor = new BlockPos(2, 1, 2);
-        BlockPos archive = motor.above();
-        helper.setBlock(motor, AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.UP));
-        helper.setBlock(archive, BFBlocks.BLUEPRINT_ARCHIVE.get());
+    public static void archiveStandsOnlyOnAStraightBeltAlongItsAxis(GameTestHelper helper) {
+        archiveOnBelt(helper, false, false);
+        ServerLevel level = helper.getLevel();
+        BlockState alongBelt = BFBlocks.BLUEPRINT_ARCHIVE.get().defaultBlockState().setValue(BlueprintArchiveBlock.AXIS, Direction.Axis.X);
+        BlockState acrossBelt = alongBelt.setValue(BlueprintArchiveBlock.AXIS, Direction.Axis.Z);
+        helper.assertTrue(alongBelt.canSurvive(level, helper.absolutePos(ARCHIVE)), "archive stands on the belt along its axis");
+        helper.assertFalse(acrossBelt.canSurvive(level, helper.absolutePos(ARCHIVE)), "archive must follow the belt axis");
+        helper.assertTrue(BlueprintArchiveBlock.beltAxisBelow(level, helper.absolutePos(ARCHIVE)) == Direction.Axis.X, "belt below runs along X");
+
+        helper.setBlock(new BlockPos(2, 1, 4), Blocks.STONE);
+        helper.assertFalse(alongBelt.canSurvive(level, helper.absolutePos(new BlockPos(2, 2, 4))), "archive needs a belt below");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void archiveTurnsFromAShaftThroughTheRoof(GameTestHelper helper) {
+        archiveOnBelt(helper, false, true);
         helper.succeedWhen(() -> {
-            BlueprintArchiveBlockEntity be = helper.getBlockEntity(archive);
-            helper.assertTrue(be.getSpeed() != 0, "archive must receive rotation from the shaft below, speed=" + be.getSpeed());
+            BlueprintArchiveBlockEntity be = helper.getBlockEntity(ARCHIVE);
+            helper.assertTrue(be.getSpeed() != 0, "archive must receive rotation from the shaft above, speed=" + be.getSpeed());
         });
     }
 
     @GameTest(template = EMPTY)
-    public static void archiveIgnoresRotationFromTheSide(GameTestHelper helper) {
-        BlockPos archive = new BlockPos(2, 1, 2);
-        helper.setBlock(archive.east(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.WEST));
-        helper.setBlock(archive, BFBlocks.BLUEPRINT_ARCHIVE.get());
-        helper.runAfterDelay(10, () -> {
-            BlueprintArchiveBlockEntity be = helper.getBlockEntity(archive);
-            helper.assertTrue(be.getSpeed() == 0, "archive only takes a shaft from below");
+    public static void archiveDoesNotTakeRotationFromTheBelt(GameTestHelper helper) {
+        archiveOnBelt(helper, true, false);
+        helper.runAfterDelay(20, () -> {
+            BeltBlockEntity belt = BeltHelper.getSegmentBE(helper.getLevel(), helper.absolutePos(ARCHIVE.below()));
+            helper.assertTrue(belt != null && belt.getSpeed() != 0, "the belt itself must run");
+            BlueprintArchiveBlockEntity be = helper.getBlockEntity(ARCHIVE);
+            helper.assertTrue(be.getSpeed() == 0, "the Archive is powered only through its roof");
             helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 600)
+    public static void beltCarriesItemsThroughTheArchive(GameTestHelper helper) {
+        archiveOnBelt(helper, true, true);
+        // Belt positions count from the controller end; the ingot starts on the segment before the Archive.
+        float[] direction = new float[1];
+        helper.runAfterDelay(20, () -> {
+            BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
+            helper.assertTrue(controller != null && controller.getDirectionAwareBeltMovementSpeed() != 0, "belt must be running");
+            direction[0] = Math.signum(controller.getDirectionAwareBeltMovementSpeed());
+            TransportedItemStack item = new TransportedItemStack(new ItemStack(Items.IRON_INGOT));
+            item.beltPosition = direction[0] > 0 ? 0.5F : controller.beltLength - 0.5F;
+            controller.getInventory().addItem(item);
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(direction[0] != 0, "ingot not placed yet");
+            BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
+            float archiveSegmentCenter = controller.beltLength / 2.0F;
+            List<TransportedItemStack> onBelt = controller.getInventory().getTransportedItems().stream()
+                    .filter(stack -> stack.stack.is(Items.IRON_INGOT)).toList();
+            boolean pastArchive = onBelt.stream()
+                    .anyMatch(stack -> (stack.beltPosition - archiveSegmentCenter) * direction[0] > 1.0F);
+            boolean ejectedAtFarEnd = onBelt.isEmpty() && !helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                    new AABB(helper.absolutePos(ARCHIVE)).inflate(6), entity -> entity.getItem().is(Items.IRON_INGOT)).isEmpty();
+            helper.assertTrue(pastArchive || ejectedAtFarEnd, "the ingot must travel under the Archive and past it");
         });
     }
 
     @GameTest(template = EMPTY)
     public static void archiveKeepsOneDocumentAcrossSaveAndDropsItWhenBroken(GameTestHelper helper) {
-        BlockPos pos = new BlockPos(2, 1, 2);
-        helper.setBlock(pos, BFBlocks.BLUEPRINT_ARCHIVE.get());
-        BlueprintArchiveBlockEntity be = helper.getBlockEntity(pos);
+        BlueprintArchiveBlockEntity be = archiveOnBelt(helper, false, false);
         UUID uuid = UUID.randomUUID();
 
         helper.assertTrue(be.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
@@ -129,37 +199,97 @@ public final class BlueprintForgeGameTests {
 
         ServerLevel level = helper.getLevel();
         CompoundTag saved = be.saveWithFullMetadata(level.registryAccess());
-        BlockState state = level.getBlockState(helper.absolutePos(pos));
-        BlueprintArchiveBlockEntity reloaded = new BlueprintArchiveBlockEntity(helper.absolutePos(pos), state);
+        BlockState state = level.getBlockState(helper.absolutePos(ARCHIVE));
+        BlueprintArchiveBlockEntity reloaded = new BlueprintArchiveBlockEntity(helper.absolutePos(ARCHIVE), state);
         reloaded.loadWithComponents(saved, level.registryAccess());
         helper.assertTrue(BlueprintItem.data(reloaded.getDocument()).map(BlueprintData::instanceId).filter(uuid::equals).isPresent(),
                 "document must survive save/load with its UUID");
 
-        helper.destroyBlock(pos);
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, pos, 2.0).stream()
-                .filter(entity -> BlueprintItem.data(entity.getItem()).map(d -> d.instanceId().equals(uuid)).orElse(false))
-                .toList();
-        helper.assertTrue(drops.size() == 1, "exactly one dropped original expected, got " + drops.size());
-        helper.assertTrue(BlueprintItem.data(drops.getFirst().getItem()).map(BlueprintData::isOriginal).orElse(false), "drop is the original");
+        helper.destroyBlock(ARCHIVE);
+        assertSingleDroppedOriginal(helper, uuid);
         helper.succeed();
     }
 
     @GameTest(template = EMPTY)
-    public static void archiveRejectsBlanksFragmentsAndOtherItems(GameTestHelper helper) {
-        BlockPos pos = new BlockPos(2, 1, 2);
-        helper.setBlock(pos, BFBlocks.BLUEPRINT_ARCHIVE.get());
-        BlueprintArchiveBlockEntity be = helper.getBlockEntity(pos);
+    public static void removingTheBeltBreaksTheArchiveAndDropsTheDocument(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity be = archiveOnBelt(helper, false, false);
+        UUID uuid = UUID.randomUUID();
+        be.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
+
+        helper.destroyBlock(ARCHIVE.below());
+        helper.succeedWhen(() -> {
+            helper.assertBlockNotPresent(BFBlocks.BLUEPRINT_ARCHIVE.get(), ARCHIVE);
+            assertSingleDroppedOriginal(helper, uuid);
+        });
+    }
+
+    private static void assertSingleDroppedOriginal(GameTestHelper helper, UUID uuid) {
+        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, ARCHIVE, 3.0).stream()
+                .filter(entity -> BlueprintItem.data(entity.getItem()).map(d -> d.instanceId().equals(uuid)).orElse(false))
+                .toList();
+        helper.assertTrue(drops.size() == 1, "exactly one dropped original expected, got " + drops.size());
+        helper.assertTrue(BlueprintItem.data(drops.getFirst().getItem()).map(BlueprintData::isOriginal).orElse(false), "drop is the original");
+    }
+
+    @GameTest(template = EMPTY)
+    public static void archiveRejectsBlanksFragmentsTemplatesAndOtherItems(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity be = archiveOnBelt(helper, false, false);
 
         ItemStack fragment = guildBladeOriginal(UUID.randomUUID());
         BlueprintData data = BlueprintItem.data(fragment).orElseThrow();
         fragment.set(BFComponents.BLUEPRINT.get(), new BlueprintData(data.instanceId(), data.definitionId(), BlueprintClass.FRAGMENT,
                 data.tierId(), data.target(), 1, 0, 0, data.researcherUuid(), data.researcherName(), data.copierUuid(),
-                data.copierName(), data.roll()));
+                data.copierName(), data.ownerUuid(), data.ownerName(), data.roll()));
+        ItemStack template = guildBladeOriginal(BlueprintData.UNISSUED);
 
-        for (ItemStack stack : List.of(new ItemStack(com.blueprintforge.registry.BFItems.BLUEPRINT.get()), fragment, new ItemStack(Items.PAPER))) {
+        for (ItemStack stack : List.of(new ItemStack(BFItems.BLUEPRINT.get()), fragment, template, new ItemStack(Items.PAPER))) {
             helper.assertFalse(be.getBlueprintSlot().insertItem(0, stack, false).isEmpty(), "must reject " + stack);
         }
         helper.assertTrue(be.getDocument().isEmpty(), "slot stays empty");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void creativeCopiesBelongToThePlayerWhoTakesThem(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        CreativeModeTab tab = BFCreativeTabs.MAIN.get();
+        tab.buildContents(new CreativeModeTab.ItemDisplayParameters(level.enabledFeatures(), false, level.registryAccess()));
+        ItemStack template = tab.getDisplayItems().stream()
+                .filter(stack -> BlueprintItem.data(stack).map(d -> d.definitionId().equals(GUILD_BLADE)).orElse(false))
+                .findFirst().orElseThrow(() -> new IllegalStateException("guild_blade missing from the creative tab"));
+        helper.assertTrue(BlueprintItem.data(template).orElseThrow().isUnissued(), "creative tab holds an unissued template");
+
+        Player player = helper.makeMockPlayer(GameType.CREATIVE);
+        player.getInventory().setItem(0, template.copy());
+        player.getInventory().setItem(1, template.copy());
+        helper.assertTrue(CreativeIssueHandler.issueInventory(player) == 2, "both taken copies must be issued");
+
+        BlueprintData first = BlueprintItem.data(player.getInventory().getItem(0)).orElseThrow();
+        BlueprintData second = BlueprintItem.data(player.getInventory().getItem(1)).orElseThrow();
+        for (BlueprintData issued : List.of(first, second)) {
+            helper.assertFalse(issued.isUnissued(), "issued copy needs a real instance id");
+            helper.assertTrue(issued.ownerUuid().filter(player.getUUID()::equals).isPresent(), "owner is the player who took it");
+            helper.assertTrue(issued.ownerName().filter(player.getGameProfile().getName()::equals).isPresent(), "owner name is recorded");
+            helper.assertTrue(issued.isOriginal() && issued.runsRemaining() == -1, "class and runs are kept");
+        }
+        helper.assertFalse(first.instanceId().equals(second.instanceId()), "two copies from the tab never share a UUID");
+        helper.assertTrue(BlueprintItem.data(template).orElseThrow().isUnissued(), "the tab template itself stays unissued");
+        helper.assertTrue(CreativeIssueHandler.issueInventory(player) == 0, "issued copies are not re-issued");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void creativeCopyThrownOutOfTheInventoryBelongsToTheThrower(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Player player = helper.makeMockPlayer(GameType.CREATIVE);
+        Vec3 at = Vec3.atCenterOf(helper.absolutePos(new BlockPos(2, 1, 2)));
+        ItemEntity thrown = new ItemEntity(level, at.x, at.y, at.z, guildBladeOriginal(BlueprintData.UNISSUED));
+        thrown.setThrower(player);
+        level.addFreshEntity(thrown);
+
+        BlueprintData issued = BlueprintItem.data(thrown.getItem()).orElseThrow();
+        helper.assertFalse(issued.isUnissued(), "thrown template must be issued when it enters the world");
+        helper.assertTrue(issued.ownerUuid().filter(player.getUUID()::equals).isPresent(), "owner is the thrower");
         helper.succeed();
     }
 
