@@ -62,6 +62,8 @@ neoForge {
         }
         client {
             client()
+            // Registers the GameTests so `/test run <name>` can build test scenes in a dev world.
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
         server {
             server()
