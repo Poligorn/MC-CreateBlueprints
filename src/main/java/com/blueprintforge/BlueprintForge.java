@@ -78,7 +78,7 @@ public final class BlueprintForge {
         context.enqueueWork(() -> {
             // An integrated server already holds these definitions in the same JVM.
             if (ServerLifecycleHooks.getCurrentServer() == null) {
-                BlueprintDataLoader.acceptSynced(payload.tiers(), payload.blueprints());
+                BlueprintDataLoader.acceptSynced(payload.tiers(), payload.blueprints(), payload.research(), payload.researchForBlueprint());
             }
             if (FMLEnvironment.dist.isClient()) {
                 BlueprintForgeClient.onDefinitionsSynced();

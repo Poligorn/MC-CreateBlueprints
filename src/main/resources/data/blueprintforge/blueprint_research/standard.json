@@ -1,0 +1,8 @@
+{
+  "applies_to": ["blueprintforge:guild_blade"],
+  "me_step_cost": [{ "item": "minecraft:iron_ingot", "count": 4 }],
+  "te_step_cost": [{ "item": "minecraft:redstone", "count": 8 }],
+  "stress_per_step": 256,
+  "time_per_step_ticks": 400,
+  "allow_research_on_copy": false
+}

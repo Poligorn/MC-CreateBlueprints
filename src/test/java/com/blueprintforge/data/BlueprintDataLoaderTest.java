@@ -68,12 +68,19 @@ class BlueprintDataLoaderTest {
     }
 
     private static BlueprintDataLoader.Result load(Map<ResourceLocation, String> blueprints, Map<ResourceLocation, String> sources) {
+        return load(blueprints, sources, Map.of());
+    }
+
+    private static BlueprintDataLoader.Result load(Map<ResourceLocation, String> blueprints, Map<ResourceLocation, String> sources,
+                                                   Map<ResourceLocation, String> research) {
         Map<ResourceLocation, JsonElement> blueprintJson = new TreeMap<>();
         blueprints.forEach((k, v) -> blueprintJson.put(k, json(v)));
         Map<ResourceLocation, JsonElement> sourceJson = new TreeMap<>();
         sources.forEach((k, v) -> sourceJson.put(k, json(v)));
+        Map<ResourceLocation, JsonElement> researchJson = new TreeMap<>();
+        research.forEach((k, v) -> researchJson.put(k, json(v)));
         BlueprintDataLoader.RawData raw = new BlueprintDataLoader.RawData(
-                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, new ArrayList<>());
+                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, researchJson, new ArrayList<>());
         return BlueprintDataLoader.load(raw, JsonOps.INSTANCE, ITEMS);
     }
 
@@ -240,6 +247,29 @@ class BlueprintDataLoaderTest {
         assertEquals(Optional.of(owner), issued.ownerUuid());
         assertEquals(Optional.of("Dev"), issued.ownerName());
         assertEquals(template, issued.issuedTo(BlueprintData.UNISSUED, Optional.empty(), Optional.empty()));
+    }
+
+    @Test
+    void researchProfileLoadsAndAnUnknownBlueprintIsSkipped() {
+        String profile = """
+                {"applies_to": ["blueprintforge:guild_blade"],
+                 "me_step_cost": [{"item": "minecraft:iron_ingot", "count": 4}],
+                 "te_step_cost": [{"item": "minecraft:redstone", "count": 8}],
+                 "stress_per_step": 256, "time_per_step_ticks": 400, "allow_research_on_copy": false}
+                """;
+        String unknown = profile.replace("guild_blade", "missing");
+        String broken = "{\"stress_per_step\": 256}";
+        BlueprintDataLoader.Result result = load(
+                Map.of(id("guild_blade"), GUILD_BLADE),
+                Map.of(),
+                Map.of(id("standard"), profile, id("missing"), unknown, id("broken"), broken));
+        assertEquals(256, result.research().get(id("standard")).stressPerStep());
+        assertFalse(result.research().get(id("standard")).allowResearchOnCopy());
+        assertEquals(id("standard"), result.researchForBlueprint().get(id("guild_blade")));
+        assertFalse(result.research().containsKey(id("missing")));
+        assertFalse(result.research().containsKey(id("broken")));
+        assertTrue(hasError(result, "blueprint_research/missing.json", "unknown blueprint"));
+        assertTrue(hasError(result, "blueprint_research/broken.json"));
     }
 
     @Test

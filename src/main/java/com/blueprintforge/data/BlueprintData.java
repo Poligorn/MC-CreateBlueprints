@@ -69,6 +69,17 @@ public record BlueprintData(
         return UNISSUED.equals(instanceId);
     }
 
+    /**
+     * Same instance after a finished research step. The first researcher is kept; a later step does not overwrite them.
+     * Originals stay originals.
+     */
+    public BlueprintData withResearch(int materialEfficiency, int timeEfficiency, Optional<UUID> researcher, Optional<String> researcherName) {
+        Optional<UUID> who = researcherUuid.isPresent() ? researcherUuid : researcher;
+        Optional<String> name = researcherUuid.isPresent() ? this.researcherName : researcherName;
+        return new BlueprintData(instanceId, definitionId, clazz, tierId, target, runsRemaining, materialEfficiency,
+                timeEfficiency, who, name, copierUuid, copierName, ownerUuid, ownerName, roll);
+    }
+
     /** Same instance with a new run count. Originals stay at {@code -1}; this does not change class. */
     public BlueprintData withRuns(int runsRemaining) {
         return new BlueprintData(instanceId, definitionId, clazz, tierId, target, runsRemaining, materialEfficiency,
