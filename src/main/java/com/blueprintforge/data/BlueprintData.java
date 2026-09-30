@@ -69,6 +69,12 @@ public record BlueprintData(
         return UNISSUED.equals(instanceId);
     }
 
+    /** Same instance with a new run count. Originals stay at {@code -1}; this does not change class. */
+    public BlueprintData withRuns(int runsRemaining) {
+        return new BlueprintData(instanceId, definitionId, clazz, tierId, target, runsRemaining, materialEfficiency,
+                timeEfficiency, researcherUuid, researcherName, copierUuid, copierName, ownerUuid, ownerName, roll);
+    }
+
     /** A real instance made from a template: fresh UUID, owner recorded, everything else unchanged. */
     public BlueprintData issuedTo(UUID newInstanceId, Optional<UUID> owner, Optional<String> ownerDisplayName) {
         return new BlueprintData(newInstanceId, definitionId, clazz, tierId, target, runsRemaining, materialEfficiency,

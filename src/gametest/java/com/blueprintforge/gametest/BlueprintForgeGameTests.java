@@ -1,7 +1,9 @@
 package com.blueprintforge.gametest;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import com.blueprintforge.BFConfig;
 import com.blueprintforge.BlueprintForge;
@@ -31,6 +33,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -43,9 +46,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.EnchantmentMenu;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -242,7 +247,8 @@ public final class BlueprintForgeGameTests {
                 data.copierName(), data.ownerUuid(), data.ownerName(), data.roll()));
         ItemStack template = guildBladeOriginal(BlueprintData.UNISSUED);
 
-        for (ItemStack stack : List.of(new ItemStack(BFItems.BLUEPRINT.get()), fragment, template, new ItemStack(Items.PAPER))) {
+        ItemStack spentCopy = guildBladeCopy(UUID.randomUUID(), 0);
+        for (ItemStack stack : List.of(new ItemStack(BFItems.BLUEPRINT.get()), fragment, template, spentCopy, new ItemStack(Items.PAPER))) {
             helper.assertFalse(be.getBlueprintSlot().insertItem(0, stack, false).isEmpty(), "must reject " + stack);
         }
         helper.assertTrue(be.getDocument().isEmpty(), "slot stays empty");
@@ -367,5 +373,210 @@ public final class BlueprintForgeGameTests {
         menu.getSlot(0).set(new ItemStack(Items.IRON_SWORD));
         helper.assertFalse(menu.getSlot(2).getItem().isEmpty(), "anvil must still enchant a vanilla sword");
         helper.succeed();
+    }
+
+    private static ItemStack guildBladeCopy(UUID uuid, int runs) {
+        ItemStack stack = guildBladeOriginal(uuid);
+        BlueprintData data = BlueprintItem.data(stack).orElseThrow();
+        stack.set(BFComponents.BLUEPRINT.get(), new BlueprintData(data.instanceId(), data.definitionId(), BlueprintClass.COPY,
+                data.tierId(), data.target(), runs, data.materialEfficiency(), data.timeEfficiency(),
+                data.researcherUuid(), data.researcherName(), data.copierUuid(), data.copierName(),
+                data.ownerUuid(), data.ownerName(), data.roll()));
+        return stack;
+    }
+
+    private static void placeOnBelt(GameTestHelper helper, ItemStack stack) {
+        BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
+        helper.assertTrue(controller != null && controller.getInventory() != null && controller.getDirectionAwareBeltMovementSpeed() != 0,
+                "belt must be running before an item is placed");
+        float direction = Math.signum(controller.getDirectionAwareBeltMovementSpeed());
+        TransportedItemStack transported = new TransportedItemStack(stack);
+        transported.beltPosition = direction > 0 ? 0.5F : controller.beltLength - 0.5F;
+        controller.getInventory().addItem(transported);
+    }
+
+    private static boolean isPastArchive(GameTestHelper helper, Predicate<ItemStack> match) {
+        BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
+        if (controller == null || controller.getInventory() == null) {
+            return false;
+        }
+        float direction = Math.signum(controller.getDirectionAwareBeltMovementSpeed());
+        float center = controller.beltLength / 2.0F;
+        boolean onBelt = controller.getInventory().getTransportedItems().stream()
+                .anyMatch(stack -> match.test(stack.stack) && (stack.beltPosition - center) * direction > 1.0F);
+        boolean ejected = !helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(helper.absolutePos(ARCHIVE)).inflate(8), entity -> match.test(entity.getItem())).isEmpty();
+        return onBelt || ejected;
+    }
+
+    private static List<ItemStack> stacksAround(GameTestHelper helper, Predicate<ItemStack> match) {
+        List<ItemStack> found = new ArrayList<>();
+        BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
+        if (controller != null && controller.getInventory() != null) {
+            for (TransportedItemStack transported : controller.getInventory().getTransportedItems()) {
+                if (match.test(transported.stack)) {
+                    found.add(transported.stack);
+                }
+            }
+        }
+        for (ItemEntity entity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(ARCHIVE)).inflate(8))) {
+            if (match.test(entity.getItem())) {
+                found.add(entity.getItem());
+            }
+        }
+        return found;
+    }
+
+    private static boolean isGuildForged(ItemStack stack) {
+        ForgedItemData forged = stack.get(BFComponents.FORGED.get());
+        return stack.is(Items.IRON_SWORD) && forged != null && forged.blueprintId().equals(GUILD_BLADE) && forged.tierId().equals(TIER2);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 800)
+    public static void archiveRemakesAPlainSwordAndKeepsTheOriginal(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
+        UUID uuid = UUID.randomUUID();
+        helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning, speed=" + archive.getSpeed());
+            placeOnBelt(helper, new ItemStack(Items.IRON_SWORD));
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(isPastArchive(helper, BlueprintForgeGameTests::isGuildForged), "forged sword must leave the tunnel");
+            helper.assertTrue(stacksAround(helper, stack -> stack.is(Items.IRON_SWORD) && !isGuildForged(stack)).isEmpty(),
+                    "the plain sword must be replaced, not duplicated");
+            ItemStack forged = stacksAround(helper, BlueprintForgeGameTests::isGuildForged).getFirst();
+            helper.assertTrue(forged.getCount() == 1, "one sword in, one sword out");
+            helper.assertTrue(forged.getMaxDamage() == 275, "durability is base 250 × tier 1.10, got " + forged.getMaxDamage());
+            ItemAttributeModifiers modifiers = forged.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
+            boolean bonus = modifiers.modifiers().stream().anyMatch(entry ->
+                    entry.modifier().id().getPath().startsWith("forged/generic.attack_damage")
+                            && Math.abs(entry.modifier().amount() - 0.15D) < 1.0E-9
+                            && entry.modifier().operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+            helper.assertTrue(bonus, "forged sword must carry the blueprint's attack modifier");
+            BlueprintData document = BlueprintItem.data(archive.getDocument()).orElse(null);
+            helper.assertTrue(document != null && document.isOriginal() && document.runsRemaining() == -1
+                    && document.instanceId().equals(uuid), "the original stays in the Archive");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 800)
+    public static void archiveSpendsTheLastCopyRun(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
+        UUID uuid = UUID.randomUUID();
+        helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 1), false).isEmpty(), "a copy with a run must fit");
+        helper.runAfterDelay(20, () -> placeOnBelt(helper, new ItemStack(Items.IRON_SWORD)));
+        helper.succeedWhen(() -> {
+            helper.assertTrue(isPastArchive(helper, BlueprintForgeGameTests::isGuildForged), "the copy's last run must still forge the sword");
+            helper.assertTrue(archive.getDocument().isEmpty(), "the copy is destroyed on its last run");
+            helper.assertTrue(stacksAround(helper, stack -> BlueprintItem.data(stack).map(d -> d.instanceId().equals(uuid)).orElse(false)).isEmpty(),
+                    "the spent copy is not dropped");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 600)
+    public static void archiveDoesNotRemakeWithoutRotation(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, false);
+        UUID uuid = UUID.randomUUID();
+        archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(archive.getSpeed() == 0, "this archive has no shaft");
+            placeOnBelt(helper, new ItemStack(Items.IRON_SWORD));
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(isPastArchive(helper, stack -> stack.is(Items.IRON_SWORD) && stack.get(BFComponents.FORGED.get()) == null),
+                    "without rotation the sword passes through unchanged");
+            helper.assertTrue(stacksAround(helper, BlueprintForgeGameTests::isGuildForged).isEmpty(), "an idle Archive must not forge");
+            helper.assertTrue(BlueprintItem.data(archive.getDocument()).map(d -> d.instanceId().equals(uuid) && d.isOriginal()).orElse(false),
+                    "the original is untouched");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 800)
+    public static void archiveLetsAStackPass(GameTestHelper helper) {
+        expectPassThrough(helper, new ItemStack(Items.IRON_SWORD, 2),
+                stack -> stack.is(Items.IRON_SWORD) && stack.getCount() == 2 && stack.get(BFComponents.FORGED.get()) == null,
+                "a stack of two must pass through whole");
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 800)
+    public static void archiveLetsAnEnchantedSwordPass(GameTestHelper helper) {
+        Holder<Enchantment> sharpness = helper.getLevel().registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
+                .getOrThrow(Enchantments.SHARPNESS);
+        ItemStack enchanted = new ItemStack(Items.IRON_SWORD);
+        enchanted.enchant(sharpness, 1);
+        expectPassThrough(helper, enchanted,
+                stack -> stack.is(Items.IRON_SWORD) && stack.isEnchanted() && stack.get(BFComponents.FORGED.get()) == null,
+                "an enchanted sword must not be reforged");
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 800)
+    public static void archiveLetsADamagedSwordPass(GameTestHelper helper) {
+        ItemStack damaged = new ItemStack(Items.IRON_SWORD);
+        damaged.setDamageValue(10);
+        helper.assertTrue(damaged.isDamaged() && damaged.getDamageValue() == 10, "the sword must start damaged");
+        expectPassThrough(helper, damaged,
+                stack -> stack.is(Items.IRON_SWORD) && stack.getDamageValue() == 10 && stack.get(BFComponents.FORGED.get()) == null,
+                "a damaged sword must not be repaired by a remake");
+    }
+
+    private static void expectPassThrough(GameTestHelper helper, ItemStack input, Predicate<ItemStack> stillInput, String message) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
+        UUID uuid = UUID.randomUUID();
+        archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning");
+            placeOnBelt(helper, input);
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(isPastArchive(helper, stillInput), message + "; nearby=" + describeSwords(helper));
+            helper.assertTrue(stacksAround(helper, BlueprintForgeGameTests::isGuildForged).isEmpty(), "unsuitable items are not forged");
+            helper.assertTrue(BlueprintItem.data(archive.getDocument()).map(d -> d.runsRemaining() == -1).orElse(false),
+                    "passing items do not spend the original");
+            helper.succeed();
+        });
+    }
+
+    private static String describeSwords(GameTestHelper helper) {
+        return stacksAround(helper, stack -> stack.is(Items.IRON_SWORD)).stream()
+                .map(stack -> "n=" + stack.getCount()
+                        + " dmg=" + stack.getDamageValue()
+                        + " ench=" + stack.isEnchanted()
+                        + " forged=" + (stack.get(BFComponents.FORGED.get()) != null))
+                .toList()
+                .toString();
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 600)
+    public static void breakingTheArchiveMidRemakeDoesNotSpendTheCopy(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
+        UUID uuid = UUID.randomUUID();
+        archive.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 5), false);
+        boolean[] broke = {false};
+        helper.runAfterDelay(20, () -> placeOnBelt(helper, new ItemStack(Items.IRON_SWORD)));
+        helper.succeedWhen(() -> {
+            if (!broke[0]) {
+                BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
+                helper.assertTrue(controller != null && controller.getInventory() != null, "belt not ready");
+                boolean heldPlain = controller.getInventory().getTransportedItems().stream()
+                        .anyMatch(stack -> stack.locked && stack.stack.is(Items.IRON_SWORD) && stack.stack.get(BFComponents.FORGED.get()) == null);
+                helper.assertTrue(heldPlain, "the sword should be held in the tunnel before the break");
+                helper.destroyBlock(ARCHIVE);
+                broke[0] = true;
+            }
+            List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, ARCHIVE, 3.0).stream()
+                    .filter(entity -> BlueprintItem.data(entity.getItem()).map(d -> d.instanceId().equals(uuid)).orElse(false))
+                    .toList();
+            helper.assertTrue(drops.size() == 1, "the copy must drop, got " + drops.size());
+            BlueprintData dropped = BlueprintItem.data(drops.getFirst().getItem()).orElseThrow();
+            helper.assertTrue(dropped.clazz() == BlueprintClass.COPY && dropped.runsRemaining() == 5,
+                    "an interrupted remake must not spend a run, runs=" + dropped.runsRemaining());
+            helper.assertTrue(stacksAround(helper, BlueprintForgeGameTests::isGuildForged).isEmpty(),
+                    "an interrupted remake must not leave a forged sword");
+            helper.succeed();
+        });
     }
 }

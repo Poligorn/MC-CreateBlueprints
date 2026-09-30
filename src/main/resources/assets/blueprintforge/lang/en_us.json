@@ -23,6 +23,9 @@
   "gui.blueprintforge.archive.speed": "Network speed: %s RPM",
   "gui.blueprintforge.archive.no_rotation": "No rotation: the Archive is idle",
   "gui.blueprintforge.archive.empty": "Place an original or a copy",
+  "gui.blueprintforge.archive.remake": "Remakes %s on the belt",
+  "gui.blueprintforge.archive.remake_copy": "Remakes %s on the belt · %s runs left",
+  "gui.blueprintforge.archive.remake_unknown": "its target item",
 
   "message.blueprintforge.enchanting.restricted": "Enchanting is for handmade things. This item is made from a blueprint",
   "message.blueprintforge.enchanting.full": "The enchanting table does not work on this server",

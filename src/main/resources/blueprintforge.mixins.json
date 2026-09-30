@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.blueprintforge.compat.create",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "BeltInventoryMixin",
+    "BeltProcessingBehaviourMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,10 +1,19 @@
 package com.blueprintforge.client;
 
+import java.util.List;
+
+import com.blueprintforge.data.BlueprintClass;
+import com.blueprintforge.data.BlueprintData;
+import com.blueprintforge.data.BlueprintDefinition;
+import com.blueprintforge.data.BlueprintRegistry;
+import com.blueprintforge.item.BlueprintItem;
 import com.blueprintforge.machine.BlueprintArchiveMenu;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -27,7 +36,7 @@ public class BlueprintArchiveScreen extends AbstractContainerScreen<BlueprintArc
     public BlueprintArchiveScreen(BlueprintArchiveMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         imageWidth = 176;
-        imageHeight = 166;
+        imageHeight = 190;
         inventoryLabelY = imageHeight - 94;
     }
 
@@ -75,5 +84,33 @@ public class BlueprintArchiveScreen extends AbstractContainerScreen<BlueprintArc
                 ? Component.translatable("gui.blueprintforge.archive.empty")
                 : document.getHoverName();
         graphics.drawString(font, documentLine, 8, 58, TEXT, false);
+
+        Component remake = remakeLine(document);
+        if (remake != null) {
+            List<FormattedCharSequence> lines = font.split(remake, imageWidth - 16);
+            int shown = Math.min(2, lines.size());
+            for (int i = 0; i < shown; i++) {
+                graphics.drawString(font, lines.get(i), 8, 70 + i * 10, TEXT, false);
+            }
+        }
+    }
+
+    /** What the belt will rewrite, including a copy's remaining runs, before the player sends an item through. */
+    private static Component remakeLine(ItemStack document) {
+        BlueprintData data = BlueprintItem.data(document).orElse(null);
+        if (data == null) {
+            return null;
+        }
+        BlueprintDefinition definition = BlueprintRegistry.get(data.definitionId()).orElse(null);
+        if (definition == null || definition.remake().isEmpty() || definition.target().isEmpty()) {
+            return null;
+        }
+        Component target = BuiltInRegistries.ITEM.getOptional(definition.target().get())
+                .map(item -> Component.translatable(item.getDescriptionId()))
+                .orElseGet(() -> Component.translatable("gui.blueprintforge.archive.remake_unknown"));
+        if (data.clazz() == BlueprintClass.COPY) {
+            return Component.translatable("gui.blueprintforge.archive.remake_copy", target, data.runsRemaining());
+        }
+        return Component.translatable("gui.blueprintforge.archive.remake", target);
     }
 }

@@ -29,3 +29,6 @@ type = "required"
 versionRange = "${create_version_range}"
 ordering = "AFTER"
 side = "BOTH"
+
+[[mixins]]
+config = "${mod_id}.mixins.json"
