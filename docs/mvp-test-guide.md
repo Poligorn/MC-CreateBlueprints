@@ -1,6 +1,6 @@
 # Blueprint Forge MVP — гайд ручной проверки
 
-Сборка: `docs/builds/blueprintforge-0.1.0-mvp.jar` (SHA-256 `645917b027d437efa3b88f5fd74d9603af5dbe9909e1ce1f46fdf34ff39c5415`).
+Сборка: `docs/builds/blueprintforge-0.1.0-mvp.jar` (SHA-256 `3457752ff8604a90db05c4921b5649bd9b156952fd62ca19262bf313d8c9808b`, 286210 байт).
 
 ## Что поставить
 

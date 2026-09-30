@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 import com.blueprintforge.BFConfig;
+import com.blueprintforge.compat.viewer.ViewerCatalog;
 import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.data.BlueprintClass;
 import com.blueprintforge.data.BlueprintData;
@@ -675,5 +676,45 @@ public final class BlueprintForgeGameTests {
             helper.assertTrue(BlueprintItem.data(archive.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays 0");
             helper.succeed();
         });
+    }
+
+    @GameTest(template = EMPTY)
+    public static void viewerPagesMatchTheReferencePack(GameTestHelper helper) {
+        List<ViewerCatalog.ResearchStep> research = ViewerCatalog.researchSteps();
+        ViewerCatalog.ResearchStep me = research.stream()
+                .filter(step -> step.id().getPath().equals("research/blueprintforge_guild_blade_me"))
+                .findFirst().orElse(null);
+        helper.assertTrue(me != null, "guild blade ME step must be listed");
+        helper.assertTrue(me.cost().size() == 1 && me.cost().getFirst().is(Items.IRON_INGOT) && me.cost().getFirst().getCount() == 4,
+                "ME step costs 4 iron");
+        helper.assertTrue(BlueprintItem.data(me.result()).orElseThrow().materialEfficiency() == 3, "the shown step lands on 3");
+        ViewerCatalog.ResearchStep te = research.stream()
+                .filter(step -> step.id().getPath().equals("research/blueprintforge_guild_blade_te"))
+                .findFirst().orElse(null);
+        helper.assertTrue(te != null && te.cost().size() == 1 && te.cost().getFirst().is(Items.REDSTONE) && te.cost().getFirst().getCount() == 8,
+                "TE step costs 8 redstone");
+
+        ViewerCatalog.CopyPrint print = ViewerCatalog.copyPrints().stream()
+                .filter(page -> page.id().getPath().equals("copy/blueprintforge_guild_blade"))
+                .findFirst().orElse(null);
+        helper.assertTrue(print != null, "guild blade copy must be listed");
+        helper.assertTrue(print.cost().stream().anyMatch(stack -> stack.is(Items.PAPER) && stack.getCount() == 8), "10 runs cost 8 paper");
+        helper.assertTrue(print.cost().stream().anyMatch(stack -> stack.is(Items.INK_SAC) && stack.getCount() == 2), "10 runs cost 2 ink");
+        BlueprintData copy = BlueprintItem.data(print.copy()).orElseThrow();
+        helper.assertTrue(copy.clazz() == BlueprintClass.COPY && copy.runsRemaining() == 10, "the print is a 10-run copy");
+        helper.assertTrue(copy.materialEfficiency() == 0 && copy.timeEfficiency() == 0, "a fresh original prints at the floor");
+
+        List<ViewerCatalog.TierPage> tiers = ViewerCatalog.tiers();
+        helper.assertTrue(tiers.size() == 5, "five tier pages");
+        ViewerCatalog.TierPage handmade = tiers.stream().filter(page -> page.id().getPath().equals("tier/blueprintforge_tier1")).findFirst().orElseThrow();
+        ViewerCatalog.TierPage crafted = tiers.stream().filter(page -> page.id().getPath().equals("tier/blueprintforge_tier2")).findFirst().orElseThrow();
+        helper.assertTrue(!handmade.requiresBlueprint() && handmade.enchantLine() == null && handmade.durability().equals("1"),
+                "handmade needs no blueprint and the table still enchants it");
+        helper.assertTrue(crafted.requiresBlueprint() && crafted.durability().equals("1.1") && crafted.enchantLine() != null,
+                "crafted needs a blueprint and the table is not its path");
+        helper.assertTrue(ViewerCatalog.productionDocuments().stream().noneMatch(stack ->
+                BlueprintItem.data(stack).orElseThrow().clazz() == BlueprintClass.FRAGMENT), "fragments are not slot documents");
+        helper.assertFalse(ViewerCatalog.enchantNote().isEmpty(), "restricted mode says the table is not the forged path");
+        helper.succeed();
     }
 }
