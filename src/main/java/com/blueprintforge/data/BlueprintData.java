@@ -86,6 +86,17 @@ public record BlueprintData(
                 timeEfficiency, researcherUuid, researcherName, copierUuid, copierName, ownerUuid, ownerName, roll);
     }
 
+    /**
+     * A printed copy of this original. New instance, penalized ME/TE, the original's owner, and the player
+     * who ran the press as the copier. The original's researcher is kept so the tooltip can name both.
+     */
+    public BlueprintData printedCopy(UUID newInstanceId, int runs, int materialEfficiency, int timeEfficiency,
+                                     Optional<UUID> copier, Optional<String> copierName) {
+        return new BlueprintData(newInstanceId, definitionId, BlueprintClass.COPY, tierId, target, runs,
+                materialEfficiency, timeEfficiency, researcherUuid, researcherName, copier, copierName,
+                ownerUuid, ownerName, roll);
+    }
+
     /** A real instance made from a template: fresh UUID, owner recorded, everything else unchanged. */
     public BlueprintData issuedTo(UUID newInstanceId, Optional<UUID> owner, Optional<String> ownerDisplayName) {
         return new BlueprintData(newInstanceId, definitionId, clazz, tierId, target, runsRemaining, materialEfficiency,

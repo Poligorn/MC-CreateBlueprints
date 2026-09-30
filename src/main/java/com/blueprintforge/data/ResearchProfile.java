@@ -10,7 +10,8 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * One {@code blueprint_research} file: the price of an ME step and a TE step for the blueprints it names.
- * Copy duration and copy stress are not part of this record; copying is a later roadmap item.
+ * {@code copyTimePerRunTicks} is one printed run, in Create {@code processingTime} units.
+ * {@code copyStress} is applied only while a copy is being printed.
  */
 public record ResearchProfile(
         List<AppliesTo> appliesTo,
@@ -18,7 +19,9 @@ public record ResearchProfile(
         List<BlueprintDefinition.CostEntry> teStepCost,
         int stressPerStep,
         int timePerStepTicks,
-        boolean allowResearchOnCopy
+        boolean allowResearchOnCopy,
+        int copyTimePerRunTicks,
+        int copyStress
 ) {
     public static final Codec<ResearchProfile> CODEC = RecordCodecBuilder.<ResearchProfile>create(i -> i.group(
             AppliesTo.CODEC.listOf().fieldOf("applies_to").forGetter(ResearchProfile::appliesTo),
@@ -26,7 +29,9 @@ public record ResearchProfile(
             BlueprintDefinition.CostEntry.CODEC.listOf().optionalFieldOf("te_step_cost", List.of()).forGetter(ResearchProfile::teStepCost),
             Codec.intRange(0, 1_000_000).fieldOf("stress_per_step").forGetter(ResearchProfile::stressPerStep),
             Codec.intRange(1, 1_000_000).fieldOf("time_per_step_ticks").forGetter(ResearchProfile::timePerStepTicks),
-            Codec.BOOL.optionalFieldOf("allow_research_on_copy", false).forGetter(ResearchProfile::allowResearchOnCopy)
+            Codec.BOOL.optionalFieldOf("allow_research_on_copy", false).forGetter(ResearchProfile::allowResearchOnCopy),
+            Codec.intRange(1, 1_000_000).optionalFieldOf("copy_time_per_run_ticks", 80).forGetter(ResearchProfile::copyTimePerRunTicks),
+            Codec.intRange(0, 1_000_000).optionalFieldOf("copy_stress", 256).forGetter(ResearchProfile::copyStress)
     ).apply(i, ResearchProfile::new)).validate(profile -> profile.appliesTo.isEmpty()
             ? DataResult.error(() -> "applies_to is empty")
             : DataResult.success(profile));

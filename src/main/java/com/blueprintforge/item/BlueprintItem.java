@@ -8,6 +8,7 @@ import com.blueprintforge.data.BlueprintDefinition;
 import com.blueprintforge.data.BlueprintRegistry;
 import com.blueprintforge.data.TierDefinition;
 import com.blueprintforge.data.TierRegistry;
+import com.blueprintforge.logic.ProductionMath;
 import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.registry.BFItems;
 
@@ -78,5 +79,15 @@ public class BlueprintItem extends Item {
                 .orElseGet(() -> Component.translatable("item.blueprintforge.blueprint.unknown"));
         TierRegistry.get(data.tierId()).map(TierDefinition::color).ifPresent(name::withColor);
         return name;
+    }
+
+    @Override
+    public boolean hasCraftingRemainingItem(ItemStack stack) {
+        return ProductionMath.remainder(stack).isPresent();
+    }
+
+    @Override
+    public ItemStack getCraftingRemainingItem(ItemStack stack) {
+        return ProductionMath.remainder(stack).orElse(ItemStack.EMPTY);
     }
 }

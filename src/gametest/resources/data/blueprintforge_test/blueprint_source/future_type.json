@@ -1,6 +1,6 @@
 {
   "blueprint": "blueprintforge:guild_blade",
   "sources": [
-    { "type": "mob_drop", "entities": ["minecraft:evoker"], "chance": 0.1, "requires_player_kill": true }
+    { "type": "world_spawn", "chance": 0.1 }
   ]
 }

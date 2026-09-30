@@ -1,0 +1,32 @@
+{
+  "tier": 2,
+  "class": "original",
+  "target": "minecraft:iron_chestplate",
+  "output": {
+    "attributes": [
+      { "attribute": "minecraft:generic.armor", "mode": "multiply_total", "value": 0.15, "slot": "chest" }
+    ],
+    "durability_multiplier": 1.0,
+    "count": 1
+  },
+  "material_efficiency": { "min": 0, "max": 30, "step": 3 },
+  "time_efficiency": { "min": 0, "max": 40, "step": 5 },
+  "remake": { "processing_time": 100 },
+  "copy": {
+    "enabled": true,
+    "default_runs": 10,
+    "max_runs": 50,
+    "me_penalty": 10,
+    "te_penalty": 10,
+    "copy_cost": [{ "item": "minecraft:paper", "count": 8 }],
+    "cost_scaling": 1.35,
+    "allow_from_copy": false
+  },
+  "fitting_slots": 0,
+  "display": {
+    "name": { "translate": "blueprint.blueprintforge.guild_chestplate" },
+    "lore_line": { "translate": "blueprint.blueprintforge.guild_chestplate.lore" }
+  },
+  "tooltip_flags": ["show_runs", "show_me_te", "show_target", "show_author"],
+  "tags": ["blueprintforge:armor", "blueprintforge:tier2"]
+}

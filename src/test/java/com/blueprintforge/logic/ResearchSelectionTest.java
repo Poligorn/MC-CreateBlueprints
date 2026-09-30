@@ -19,7 +19,7 @@ class ResearchSelectionTest {
     }
 
     private static ResearchProfile profile(String target, boolean tag) {
-        return new ResearchProfile(List.of(new ResearchProfile.AppliesTo(id(target), tag)), List.of(), List.of(), 256, 400, false);
+        return new ResearchProfile(List.of(new ResearchProfile.AppliesTo(id(target), tag)), List.of(), List.of(), 256, 400, false, 80, 256);
     }
 
     @Test

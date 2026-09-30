@@ -1,0 +1,14 @@
+{
+  "type": "create:mixing",
+  "ingredients": [
+    { "item": "minecraft:iron_ingot" },
+    { "item": "minecraft:iron_ingot" },
+    {
+      "type": "blueprintforge:blueprint_slot",
+      "accept_tag": "blueprintforge:tier2",
+      "mode": "consume_on_use"
+    }
+  ],
+  "results": [{ "id": "minecraft:iron_sword" }],
+  "processing_time": 100
+}

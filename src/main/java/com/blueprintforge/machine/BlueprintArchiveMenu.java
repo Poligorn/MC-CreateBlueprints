@@ -22,9 +22,12 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 public class BlueprintArchiveMenu extends AbstractContainerMenu {
     public static final int DOCUMENT_SLOT_X = 80;
     public static final int DOCUMENT_SLOT_Y = 32;
-    public static final int MATERIAL_SLOT_Y = 136;
-    public static final int INVENTORY_Y = 168;
-    public static final int PLAYER_SLOT = 1 + BlueprintArchiveBlockEntity.MATERIAL_SLOTS;
+    public static final int MATERIAL_SLOT_Y = 158;
+    public static final int OUTPUT_SLOT_X = 152;
+    public static final int OUTPUT_SLOT_Y = 32;
+    public static final int INVENTORY_Y = 204;
+    public static final int OUTPUT_SLOT = 1 + BlueprintArchiveBlockEntity.MATERIAL_SLOTS;
+    public static final int PLAYER_SLOT = OUTPUT_SLOT + 1;
 
     private final ContainerLevelAccess access;
     private final ContainerData data;
@@ -32,7 +35,7 @@ public class BlueprintArchiveMenu extends AbstractContainerMenu {
     private final BlueprintArchiveBlockEntity archive;
 
     public BlueprintArchiveMenu(int containerId, Inventory inventory, BlueprintArchiveBlockEntity archive) {
-        this(containerId, inventory, archive.getBlueprintSlot(), archive.getMaterials(), archive.researchData(),
+        this(containerId, inventory, archive.getBlueprintSlot(), archive.getMaterials(), archive.getOutput(), archive.researchData(),
                 archive.getBlockPos(), archive);
     }
 
@@ -40,12 +43,12 @@ public class BlueprintArchiveMenu extends AbstractContainerMenu {
         BlockPos pos = buffer.readBlockPos();
         BlueprintArchiveBlockEntity archive = inventory.player.level().getBlockEntity(pos) instanceof BlueprintArchiveBlockEntity be ? be : null;
         return new BlueprintArchiveMenu(containerId, inventory, new BlueprintArchiveBlockEntity.DocumentSlot(),
-                new BlueprintArchiveBlockEntity.MaterialSlot(), new SimpleContainerData(BlueprintArchiveBlockEntity.DATA_COUNT),
-                pos, archive);
+                new BlueprintArchiveBlockEntity.MaterialSlot(), new BlueprintArchiveBlockEntity.OutputSlot(),
+                new SimpleContainerData(BlueprintArchiveBlockEntity.DATA_COUNT), pos, archive);
     }
 
     private BlueprintArchiveMenu(int containerId, Inventory inventory, IItemHandler documentSlot, IItemHandler materials,
-                                 ContainerData data, BlockPos pos, @Nullable BlueprintArchiveBlockEntity archive) {
+                                 IItemHandler output, ContainerData data, BlockPos pos, @Nullable BlueprintArchiveBlockEntity archive) {
         super(BFMenus.BLUEPRINT_ARCHIVE.get(), containerId);
         this.access = ContainerLevelAccess.create(inventory.player.level(), pos);
         this.archive = archive;
@@ -53,8 +56,11 @@ public class BlueprintArchiveMenu extends AbstractContainerMenu {
 
         addSlot(new SlotItemHandler(documentSlot, 0, DOCUMENT_SLOT_X, DOCUMENT_SLOT_Y));
         for (int slot = 0; slot < BlueprintArchiveBlockEntity.MATERIAL_SLOTS; slot++) {
-            addSlot(new SlotItemHandler(materials, slot, 8 + slot * 18, MATERIAL_SLOT_Y));
+            int column = slot % 8;
+            int row = slot / 8;
+            addSlot(new SlotItemHandler(materials, slot, 16 + column * 18, MATERIAL_SLOT_Y + row * 18));
         }
+        addSlot(new SlotItemHandler(output, 0, OUTPUT_SLOT_X, OUTPUT_SLOT_Y));
         addDataSlots(data);
 
         for (int row = 0; row < 3; row++) {
@@ -93,6 +99,22 @@ public class BlueprintArchiveMenu extends AbstractContainerMenu {
             archive.tryStart(ResearchAxis.TIME, player);
             return true;
         }
+        if (id == 2) {
+            archive.tryCopy(player);
+            return true;
+        }
+        if (id == 3) {
+            archive.nudgeRuns(-1);
+            return true;
+        }
+        if (id == 4) {
+            archive.nudgeRuns(1);
+            return true;
+        }
+        if (id == 5) {
+            archive.tryAssemble(player);
+            return true;
+        }
         return false;
     }
 
@@ -112,7 +134,7 @@ public class BlueprintArchiveMenu extends AbstractContainerMenu {
             if (!moveItemStackTo(stack, 0, 1, false)) {
                 return ItemStack.EMPTY;
             }
-        } else if (!moveItemStackTo(stack, 1, PLAYER_SLOT, false)) {
+        } else if (!moveItemStackTo(stack, 1, OUTPUT_SLOT, false)) {
             return ItemStack.EMPTY;
         }
         if (stack.isEmpty()) {

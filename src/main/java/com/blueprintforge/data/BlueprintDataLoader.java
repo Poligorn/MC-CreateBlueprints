@@ -45,6 +45,7 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
     public static final String BLUEPRINT_DIR = "blueprint";
     public static final String SOURCE_DIR = "blueprint_source";
     public static final String RESEARCH_DIR = "blueprint_research";
+    public static final String ASSEMBLY_DIR = "blueprint_assembly";
 
     private static final Logger LOGGER = BlueprintForge.LOGGER;
     private static final Gson GSON = new Gson();
@@ -59,13 +60,13 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
 
     public record RawData(Map<ResourceLocation, JsonElement> tiers, Map<ResourceLocation, JsonElement> blueprints,
                           Map<ResourceLocation, JsonElement> sources, Map<ResourceLocation, JsonElement> research,
-                          List<String> errors) {
+                          Map<ResourceLocation, JsonElement> assemblies, List<String> errors) {
     }
 
     public record Result(Map<ResourceLocation, TierDefinition> tiers, Map<ResourceLocation, BlueprintDefinition> blueprints,
                          Map<ResourceLocation, SourceDefinition> sources, Set<ResourceLocation> inactiveBlueprints,
                          Map<ResourceLocation, ResearchProfile> research, Map<ResourceLocation, ResourceLocation> researchForBlueprint,
-                         List<String> errors) {
+                         Map<ResourceLocation, AssemblyRecipe> assemblies, List<String> errors) {
     }
 
     /** Errors of the current load, kept for operators. */
@@ -81,6 +82,7 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
                 readDirectory(resourceManager, BLUEPRINT_DIR, errors),
                 readDirectory(resourceManager, SOURCE_DIR, errors),
                 readDirectory(resourceManager, RESEARCH_DIR, errors),
+                readDirectory(resourceManager, ASSEMBLY_DIR, errors),
                 errors);
     }
 
@@ -88,9 +90,9 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
     protected void apply(RawData raw, ResourceManager resourceManager, ProfilerFiller profiler) {
         Result result = load(raw, RegistryOps.create(JsonOps.INSTANCE, registries), BuiltInRegistries.ITEM::containsKey);
         publish(result);
-        LOGGER.info("Loaded {} tiers, {} blueprints ({} inactive), {} blueprint sources, {} research profiles, {} errors",
+        LOGGER.info("Loaded {} tiers, {} blueprints ({} inactive), {} blueprint sources, {} research profiles, {} assemblies, {} errors",
                 result.tiers().size(), result.blueprints().size(), result.inactiveBlueprints().size(),
-                result.sources().size(), result.research().size(), result.errors().size());
+                result.sources().size(), result.research().size(), result.assemblies().size(), result.errors().size());
     }
 
     public static void publish(Result result) {
@@ -98,15 +100,18 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
         BlueprintRegistry.replace(result.blueprints());
         SourceRegistry.replace(result.sources());
         ResearchRegistry.replace(result.research(), result.researchForBlueprint());
+        AssemblyRegistry.replace(result.assemblies());
         lastErrors = List.copyOf(result.errors());
     }
 
     /** Applies definitions received from a remote server. Sources never leave the server. */
     public static void acceptSynced(Map<ResourceLocation, TierDefinition> tiers, Map<ResourceLocation, BlueprintDefinition> blueprints,
-                                    Map<ResourceLocation, ResearchProfile> research, Map<ResourceLocation, ResourceLocation> researchForBlueprint) {
+                                    Map<ResourceLocation, ResearchProfile> research, Map<ResourceLocation, ResourceLocation> researchForBlueprint,
+                                    Map<ResourceLocation, AssemblyRecipe> assemblies) {
         TierRegistry.replace(tiers);
         BlueprintRegistry.replace(blueprints);
         ResearchRegistry.replace(research, researchForBlueprint);
+        AssemblyRegistry.replace(assemblies);
     }
 
     private static Map<ResourceLocation, JsonElement> readDirectory(ResourceManager resourceManager, String directory, List<String> errors) {
@@ -212,13 +217,19 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
                     return;
                 }
                 List<SourceDefinition.LootInjection> injections = new ArrayList<>();
+                List<SourceDefinition.MobDrop> mobDrops = new ArrayList<>();
+                List<SourceDefinition.Fishing> fishing = new ArrayList<>();
                 List<String> unsupported = new ArrayList<>();
                 for (int index = 0; index < source.sources().size(); index++) {
                     Dynamic<?> entry = source.sources().get(index);
                     String type = entry.get("type").asString().result().orElse("<missing>");
+                    String at = where + "#sources[" + index + "]";
                     if (SourceDefinition.LootInjection.TYPE.equals(type)) {
-                        decode(SourceDefinition.LootInjection.CODEC, entry, errors, where + "#sources[" + index + "]")
-                                .ifPresent(injections::add);
+                        decode(SourceDefinition.LootInjection.CODEC, entry, errors, at).ifPresent(injections::add);
+                    } else if (SourceDefinition.MobDrop.TYPE.equals(type)) {
+                        decode(SourceDefinition.MobDrop.CODEC, entry, errors, at).ifPresent(mobDrops::add);
+                    } else if (SourceDefinition.Fishing.TYPE.equals(type)) {
+                        decode(SourceDefinition.Fishing.CODEC, entry, errors, at).ifPresent(fishing::add);
                     } else {
                         unsupported.add(type);
                     }
@@ -226,13 +237,31 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
                 if (!unsupported.isEmpty()) {
                     error(errors, where, "source types " + unsupported + " are not supported by this version, skipped");
                 }
-                if (!injections.isEmpty()) {
-                    sources.put(id, new SourceDefinition(source.blueprint(), source.weight(), source.conditions(), List.copyOf(injections)));
+                if (!injections.isEmpty() || !mobDrops.isEmpty() || !fishing.isEmpty()) {
+                    sources.put(id, new SourceDefinition(source.blueprint(), source.weight(), source.conditions(),
+                            List.copyOf(injections), List.copyOf(mobDrops), List.copyOf(fishing)));
                 }
             });
         });
 
-        return new Result(tiers, blueprints, sources, inactive, research, researchForBlueprint, errors);
+        Map<ResourceLocation, AssemblyRecipe> assemblies = new LinkedHashMap<>();
+        raw.assemblies().forEach((id, json) -> {
+            String where = path(ASSEMBLY_DIR, id);
+            decode(AssemblyRecipe.CODEC, ops, json, errors, where).ifPresent(recipe -> {
+                if (!blueprints.containsKey(recipe.outputBlueprint()) && !inactive.contains(recipe.outputBlueprint())) {
+                    error(errors, where, "unknown blueprint " + recipe.outputBlueprint());
+                    return;
+                }
+                BlueprintDefinition fragment = blueprints.get(recipe.fragmentBlueprint());
+                if (fragment == null || fragment.clazz() != BlueprintClass.FRAGMENT) {
+                    error(errors, where, "fragment_item is not a fragment blueprint " + recipe.fragmentBlueprint());
+                    return;
+                }
+                assemblies.put(id, recipe);
+            });
+        });
+
+        return new Result(tiers, blueprints, sources, inactive, research, researchForBlueprint, assemblies, errors);
     }
 
     private static String path(String directory, ResourceLocation id) {

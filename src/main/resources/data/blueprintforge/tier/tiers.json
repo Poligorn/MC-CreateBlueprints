@@ -12,5 +12,26 @@
     "requires_blueprint": true,
     "global_durability_multiplier": 1.1,
     "fitting_slots": 0
+  },
+  "blueprintforge:tier3": {
+    "display": { "translate": "tier.blueprintforge.tier3" },
+    "color": "#2196F3",
+    "requires_blueprint": true,
+    "global_durability_multiplier": 1.25,
+    "fitting_slots": 1
+  },
+  "blueprintforge:tier4": {
+    "display": { "translate": "tier.blueprintforge.tier4" },
+    "color": "#9C27B0",
+    "requires_blueprint": true,
+    "global_durability_multiplier": 1.4,
+    "fitting_slots": 2
+  },
+  "blueprintforge:tier5": {
+    "display": { "translate": "tier.blueprintforge.tier5" },
+    "color": "#FFC107",
+    "requires_blueprint": true,
+    "global_durability_multiplier": 1.6,
+    "fitting_slots": 3
   }
 }

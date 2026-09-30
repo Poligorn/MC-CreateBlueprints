@@ -80,7 +80,7 @@ class BlueprintDataLoaderTest {
         Map<ResourceLocation, JsonElement> researchJson = new TreeMap<>();
         research.forEach((k, v) -> researchJson.put(k, json(v)));
         BlueprintDataLoader.RawData raw = new BlueprintDataLoader.RawData(
-                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, researchJson, new ArrayList<>());
+                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, researchJson, Map.of(), new ArrayList<>());
         return BlueprintDataLoader.load(raw, JsonOps.INSTANCE, ITEMS);
     }
 
@@ -198,9 +198,11 @@ class BlueprintDataLoaderTest {
 
         SourceDefinition source = result.sources().get(id("mixed"));
         assertEquals(1, source.lootInjections().size());
+        assertEquals(1, source.mobDrops().size());
         assertEquals(2, source.lootInjections().getFirst().addEntries());
         assertEquals(1, result.errors().stream().filter(e -> e.contains("blueprint_source/mixed.json")).count());
-        assertTrue(hasError(result, "mob_drop", "teleporter"));
+        assertTrue(hasError(result, "teleporter"));
+        assertTrue(result.errors().stream().noneMatch(e -> e.contains("mob_drop")));
     }
 
     @Test

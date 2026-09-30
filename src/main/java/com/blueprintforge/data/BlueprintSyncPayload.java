@@ -20,7 +20,8 @@ public record BlueprintSyncPayload(
         Map<ResourceLocation, TierDefinition> tiers,
         Map<ResourceLocation, BlueprintDefinition> blueprints,
         Map<ResourceLocation, ResearchProfile> research,
-        Map<ResourceLocation, ResourceLocation> researchForBlueprint
+        Map<ResourceLocation, ResourceLocation> researchForBlueprint,
+        Map<ResourceLocation, AssemblyRecipe> assemblies
 ) implements CustomPacketPayload {
     public static final Type<BlueprintSyncPayload> TYPE = new Type<>(BlueprintForge.id("definitions"));
 
@@ -28,14 +29,16 @@ public record BlueprintSyncPayload(
             Codec.unboundedMap(ResourceLocation.CODEC, TierDefinition.CODEC).fieldOf("tiers").forGetter(BlueprintSyncPayload::tiers),
             Codec.unboundedMap(ResourceLocation.CODEC, BlueprintDefinition.CODEC).fieldOf("blueprints").forGetter(BlueprintSyncPayload::blueprints),
             Codec.unboundedMap(ResourceLocation.CODEC, ResearchProfile.CODEC).fieldOf("research").forGetter(BlueprintSyncPayload::research),
-            Codec.unboundedMap(ResourceLocation.CODEC, ResourceLocation.CODEC).fieldOf("research_for").forGetter(BlueprintSyncPayload::researchForBlueprint)
+            Codec.unboundedMap(ResourceLocation.CODEC, ResourceLocation.CODEC).fieldOf("research_for").forGetter(BlueprintSyncPayload::researchForBlueprint),
+            Codec.unboundedMap(ResourceLocation.CODEC, AssemblyRecipe.CODEC).fieldOf("assemblies").forGetter(BlueprintSyncPayload::assemblies)
     ).apply(i, BlueprintSyncPayload::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, BlueprintSyncPayload> STREAM_CODEC =
             ByteBufCodecs.fromCodecWithRegistriesTrusted(CODEC);
 
     public static BlueprintSyncPayload current() {
-        return new BlueprintSyncPayload(TierRegistry.all(), BlueprintRegistry.all(), ResearchRegistry.all(), ResearchRegistry.assignments());
+        return new BlueprintSyncPayload(TierRegistry.all(), BlueprintRegistry.all(), ResearchRegistry.all(),
+                ResearchRegistry.assignments(), AssemblyRegistry.all());
     }
 
     @Override
