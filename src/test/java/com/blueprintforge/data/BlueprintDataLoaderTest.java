@@ -91,6 +91,7 @@ class BlueprintDataLoaderTest {
         assertEquals(30, blade.materialEfficiencyOrFixed().max());
         assertEquals(OutputModifier.Mode.MULTIPLY_TOTAL, blade.output().attributes().getFirst().mode());
         assertEquals(10, blade.copy().orElseThrow().mePenalty());
+        assertTrue(blade.remake().isEmpty());
         assertTrue(blade.copy().orElseThrow().copyCost().get(1).itemOrFluid().right().isPresent());
 
         SourceDefinition source = result.sources().get(id("guild_blade_chests"));
@@ -141,6 +142,18 @@ class BlueprintDataLoaderTest {
         assertTrue(hasError(result, "fragment_copy.json", "'copy' is not allowed"));
         assertEquals(Set.of(id("fragment")), result.blueprints().keySet());
         assertEquals(0, result.blueprints().get(id("fragment")).materialEfficiencyOrFixed().max());
+    }
+
+    @Test
+    void remakeProcessingTimeLoadsAndRejectsZero() {
+        String withRemake = GUILD_BLADE.replace("\"copy\":", "\"remake\": {\"processing_time\": 100}, \"copy\":");
+        BlueprintDefinition blade = load(Map.of(id("guild_blade"), withRemake), Map.of()).blueprints().get(id("guild_blade"));
+        assertEquals(100, blade.remake().orElseThrow().processingTime());
+
+        String zero = withRemake.replace("100", "0");
+        BlueprintDataLoader.Result rejected = load(Map.of(id("zero"), zero), Map.of());
+        assertTrue(rejected.blueprints().isEmpty());
+        assertTrue(hasError(rejected, "zero.json"));
     }
 
     @Test

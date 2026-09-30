@@ -23,6 +23,9 @@
   "gui.blueprintforge.archive.speed": "Скорость сети: %s об/мин",
   "gui.blueprintforge.archive.no_rotation": "Нет вращения: Архив стоит",
   "gui.blueprintforge.archive.empty": "Положите оригинал или копию",
+  "gui.blueprintforge.archive.remake": "Переделка на ленте: %s",
+  "gui.blueprintforge.archive.remake_copy": "Переделка на ленте: %s · прогоны %s",
+  "gui.blueprintforge.archive.remake_unknown": "предмет чертежа",
 
   "message.blueprintforge.enchanting.restricted": "Чары остаются для кустарных вещей. Этот предмет сделан по чертежу",
   "message.blueprintforge.enchanting.full": "Стол зачарований на этой сборке не работает",

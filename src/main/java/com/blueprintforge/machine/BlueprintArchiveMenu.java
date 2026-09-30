@@ -19,7 +19,7 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 public class BlueprintArchiveMenu extends AbstractContainerMenu {
     public static final int DOCUMENT_SLOT_X = 80;
     public static final int DOCUMENT_SLOT_Y = 35;
-    public static final int INVENTORY_Y = 84;
+    public static final int INVENTORY_Y = 108;
 
     private final ContainerLevelAccess access;
     @Nullable

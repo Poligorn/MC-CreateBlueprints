@@ -4,13 +4,16 @@
   "target": "minecraft:iron_sword",
   "output": {
     "attributes": [
-      { "attribute": "minecraft:generic.attack_damage", "mode": "multiply_total", "value": 0.15, "slot": "mainhand" }
+      { "attribute": "minecraft:attack_damage", "mode": "multiply_total", "value": 0.15, "slot": "mainhand" }
     ],
     "durability_multiplier": 1.0,
     "count": 1
   },
   "material_efficiency": { "min": 0, "max": 30, "step": 3 },
   "time_efficiency": { "min": 0, "max": 40, "step": 5 },
+  "remake": {
+    "processing_time": 100
+  },
   "copy": {
     "enabled": true,
     "default_runs": 10,
