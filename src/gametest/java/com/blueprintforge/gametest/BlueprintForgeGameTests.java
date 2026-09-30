@@ -15,6 +15,9 @@ import com.blueprintforge.data.BlueprintRegistry;
 import com.blueprintforge.data.ForgedItemData;
 import com.blueprintforge.data.TierRegistry;
 import com.blueprintforge.item.BlueprintItem;
+import com.blueprintforge.logic.EfficiencyMath;
+import com.blueprintforge.logic.ResearchAxis;
+import com.blueprintforge.logic.ResearchRefusal;
 import com.blueprintforge.machine.BlueprintArchiveBlockEntity;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
@@ -102,6 +105,10 @@ public final class BlueprintForgeGameTests {
                 "unknown tier must be reported: " + errors);
         helper.assertTrue(errors.stream().anyMatch(e -> e.contains("blueprintforge_test/blueprint_source/future_type.json")),
                 "future source type must be reported: " + errors);
+        helper.assertTrue(errors.stream().anyMatch(e -> e.contains("blueprintforge_test/blueprint_research/broken.json")),
+                "broken research file must be reported: " + errors);
+        helper.assertTrue(com.blueprintforge.data.ResearchRegistry.forBlueprint(GUILD_BLADE).isPresent(),
+                "the reference research profile must load");
         helper.assertFalse(BlueprintRegistry.get(ResourceLocation.fromNamespaceAndPath("blueprintforge_test", "unknown_tier")).isPresent(),
                 "blueprint with unknown tier must be skipped");
         helper.succeed();
@@ -576,6 +583,96 @@ public final class BlueprintForgeGameTests {
                     "an interrupted remake must not spend a run, runs=" + dropped.runsRemaining());
             helper.assertTrue(stacksAround(helper, BlueprintForgeGameTests::isGuildForged).isEmpty(),
                     "an interrupted remake must not leave a forged sword");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 900)
+    public static void archiveResearchesMaterialEfficiencyAndKeepsTheOriginal(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
+        UUID uuid = UUID.randomUUID();
+        helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
+        helper.assertTrue(archive.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false).isEmpty(), "iron must fit");
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning, speed=" + archive.getSpeed());
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.OK, "the ME step must start");
+            helper.assertTrue(archive.calculateStressApplied() == 256.0F, "the step applies the profile stress");
+            helper.assertTrue(archive.getOrCreateNetwork().getActualStressOf(archive) > 0.0F, "the network is charged while researching");
+            int expected = EfficiencyMath.researchTicks(Math.abs(archive.getSpeed()), 400);
+            helper.assertTrue(archive.researchData().get(BlueprintArchiveBlockEntity.DATA_TOTAL) == expected,
+                    "duration is the mixer formula, expected " + expected);
+        });
+        helper.succeedWhen(() -> {
+            BlueprintData data = BlueprintItem.data(archive.getDocument()).orElse(null);
+            helper.assertTrue(data != null && data.materialEfficiency() == 3 && data.timeEfficiency() == 0,
+                    "ME advances by one step of 3, got " + (data == null ? "none" : data.materialEfficiency()));
+            helper.assertTrue(data.isOriginal() && data.runsRemaining() == -1 && data.instanceId().equals(uuid), "the original stays");
+            helper.assertTrue(data.researcherUuid().isPresent(), "the player who started the step is recorded");
+            helper.assertTrue(archive.getMaterials().getStackInSlot(0).isEmpty(), "the four iron are spent when the step finishes");
+            helper.assertTrue(archive.calculateStressApplied() == 0.0F, "an idle Archive adds no stress");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 900)
+    public static void archiveResearchesTimeEfficiency(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
+        UUID uuid = UUID.randomUUID();
+        archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
+        archive.getMaterials().insertItem(0, new ItemStack(Items.REDSTONE, 8), false);
+        helper.runAfterDelay(20, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(archive.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.OK, "the TE step must start");
+        });
+        helper.succeedWhen(() -> {
+            BlueprintData data = BlueprintItem.data(archive.getDocument()).orElseThrow();
+            helper.assertTrue(data.timeEfficiency() == 5 && data.materialEfficiency() == 0, "TE advances by 5 and ME stays");
+            helper.assertTrue(archive.getMaterials().getStackInSlot(0).isEmpty(), "the redstone is spent");
+            helper.assertTrue(data.instanceId().equals(uuid) && data.runsRemaining() == -1, "the original is not consumed");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 80)
+    public static void archiveRefusesToResearchACopyOrAShortPayment(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
+        UUID uuid = UUID.randomUUID();
+        archive.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 5), false);
+        archive.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false);
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning");
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.COPY_FORBIDDEN, "a copy is not researched");
+            helper.assertTrue(archive.getMaterials().getStackInSlot(0).getCount() == 4, "a refused step does not take the iron");
+            archive.getBlueprintSlot().setStackInSlot(0, ItemStack.EMPTY);
+            helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
+            archive.getMaterials().setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 3));
+            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.MISSING_COST, "three iron do not pay for four");
+            helper.assertTrue(BlueprintItem.data(archive.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays at the start");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 80)
+    public static void archiveDoesNotResearchPastTheCeilingOrWithoutRotation(GameTestHelper helper) {
+        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, false);
+        UUID uuid = UUID.randomUUID();
+        ItemStack capped = guildBladeOriginal(uuid);
+        BlueprintData data = BlueprintItem.data(capped).orElseThrow();
+        capped.set(BFComponents.BLUEPRINT.get(), data.withResearch(30, 40, data.researcherUuid(), data.researcherName()));
+        archive.getBlueprintSlot().insertItem(0, capped, false);
+        archive.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false);
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(archive.getSpeed() == 0, "this archive has no shaft");
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.AT_CAP, "ME at 30 does not start");
+            helper.assertTrue(archive.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.AT_CAP, "TE at 40 does not start");
+            helper.assertTrue(archive.getMaterials().getStackInSlot(0).getCount() == 4, "a ceiling does not take materials");
+            ItemStack fresh = guildBladeOriginal(UUID.randomUUID());
+            archive.getBlueprintSlot().setStackInSlot(0, fresh);
+            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.NO_ROTATION, "a stopped shaft does not start");
+            helper.assertTrue(BlueprintItem.data(archive.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays 0");
             helper.succeed();
         });
     }

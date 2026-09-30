@@ -15,6 +15,7 @@ import java.util.function.Predicate;
 import org.slf4j.Logger;
 
 import com.blueprintforge.BlueprintForge;
+import com.blueprintforge.logic.ResearchSelection;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -36,13 +37,14 @@ import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 
 /**
- * Reads tiers, blueprint definitions and blueprint sources, in that order. A record that fails to parse
- * or references something unknown is skipped with an error; the rest of the pack still loads.
+ * Reads tiers, blueprint definitions, research profiles and blueprint sources, in that order. A record that
+ * fails to parse or references something unknown is skipped with an error; the rest of the pack still loads.
  */
 public final class BlueprintDataLoader extends SimplePreparableReloadListener<BlueprintDataLoader.RawData> {
     public static final String TIER_DIR = "tier";
     public static final String BLUEPRINT_DIR = "blueprint";
     public static final String SOURCE_DIR = "blueprint_source";
+    public static final String RESEARCH_DIR = "blueprint_research";
 
     private static final Logger LOGGER = BlueprintForge.LOGGER;
     private static final Gson GSON = new Gson();
@@ -56,11 +58,14 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
     }
 
     public record RawData(Map<ResourceLocation, JsonElement> tiers, Map<ResourceLocation, JsonElement> blueprints,
-                          Map<ResourceLocation, JsonElement> sources, List<String> errors) {
+                          Map<ResourceLocation, JsonElement> sources, Map<ResourceLocation, JsonElement> research,
+                          List<String> errors) {
     }
 
     public record Result(Map<ResourceLocation, TierDefinition> tiers, Map<ResourceLocation, BlueprintDefinition> blueprints,
-                         Map<ResourceLocation, SourceDefinition> sources, Set<ResourceLocation> inactiveBlueprints, List<String> errors) {
+                         Map<ResourceLocation, SourceDefinition> sources, Set<ResourceLocation> inactiveBlueprints,
+                         Map<ResourceLocation, ResearchProfile> research, Map<ResourceLocation, ResourceLocation> researchForBlueprint,
+                         List<String> errors) {
     }
 
     /** Errors of the current load, kept for operators. */
@@ -75,6 +80,7 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
                 readDirectory(resourceManager, TIER_DIR, errors),
                 readDirectory(resourceManager, BLUEPRINT_DIR, errors),
                 readDirectory(resourceManager, SOURCE_DIR, errors),
+                readDirectory(resourceManager, RESEARCH_DIR, errors),
                 errors);
     }
 
@@ -82,22 +88,25 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
     protected void apply(RawData raw, ResourceManager resourceManager, ProfilerFiller profiler) {
         Result result = load(raw, RegistryOps.create(JsonOps.INSTANCE, registries), BuiltInRegistries.ITEM::containsKey);
         publish(result);
-        LOGGER.info("Loaded {} tiers, {} blueprints ({} inactive), {} blueprint sources, {} errors",
+        LOGGER.info("Loaded {} tiers, {} blueprints ({} inactive), {} blueprint sources, {} research profiles, {} errors",
                 result.tiers().size(), result.blueprints().size(), result.inactiveBlueprints().size(),
-                result.sources().size(), result.errors().size());
+                result.sources().size(), result.research().size(), result.errors().size());
     }
 
     public static void publish(Result result) {
         TierRegistry.replace(result.tiers());
         BlueprintRegistry.replace(result.blueprints());
         SourceRegistry.replace(result.sources());
+        ResearchRegistry.replace(result.research(), result.researchForBlueprint());
         lastErrors = List.copyOf(result.errors());
     }
 
     /** Applies definitions received from a remote server. Sources never leave the server. */
-    public static void acceptSynced(Map<ResourceLocation, TierDefinition> tiers, Map<ResourceLocation, BlueprintDefinition> blueprints) {
+    public static void acceptSynced(Map<ResourceLocation, TierDefinition> tiers, Map<ResourceLocation, BlueprintDefinition> blueprints,
+                                    Map<ResourceLocation, ResearchProfile> research, Map<ResourceLocation, ResourceLocation> researchForBlueprint) {
         TierRegistry.replace(tiers);
         BlueprintRegistry.replace(blueprints);
+        ResearchRegistry.replace(research, researchForBlueprint);
     }
 
     private static Map<ResourceLocation, JsonElement> readDirectory(ResourceManager resourceManager, String directory, List<String> errors) {
@@ -164,6 +173,32 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
             });
         });
 
+        Map<ResourceLocation, ResearchProfile> research = new LinkedHashMap<>();
+        raw.research().forEach((id, json) -> {
+            String where = path(RESEARCH_DIR, id);
+            decode(ResearchProfile.CODEC, ops, json, errors, where).ifPresent(profile -> {
+                List<ResourceLocation> unknown = profile.appliesTo().stream()
+                        .filter(target -> !target.tag())
+                        .map(ResearchProfile.AppliesTo::id)
+                        .filter(blueprint -> !blueprints.containsKey(blueprint) && !inactive.contains(blueprint))
+                        .toList();
+                if (!unknown.isEmpty()) {
+                    error(errors, where, "unknown blueprint " + unknown);
+                    return;
+                }
+                research.put(id, profile);
+            });
+        });
+
+        Map<ResourceLocation, ResourceLocation> researchForBlueprint = new LinkedHashMap<>();
+        for (Map.Entry<ResourceLocation, BlueprintDefinition> entry : blueprints.entrySet()) {
+            ResearchSelection.Choice choice = ResearchSelection.choose(entry.getKey(), entry.getValue().tags(), research);
+            if (choice.ambiguous()) {
+                LOGGER.warn("Research profiles for {} are equally specific; using {}", entry.getKey(), choice.profileId().orElseThrow());
+            }
+            choice.profileId().ifPresent(profileId -> researchForBlueprint.put(entry.getKey(), profileId));
+        }
+
         Map<ResourceLocation, SourceDefinition> sources = new LinkedHashMap<>();
         raw.sources().forEach((id, json) -> {
             String where = path(SOURCE_DIR, id);
@@ -197,7 +232,7 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
             });
         });
 
-        return new Result(tiers, blueprints, sources, inactive, errors);
+        return new Result(tiers, blueprints, sources, inactive, research, researchForBlueprint, errors);
     }
 
     private static String path(String directory, ResourceLocation id) {

@@ -12,21 +12,30 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
-/** Sends tiers and blueprint definitions to clients so names, colours and the creative tab match the server. */
-public record BlueprintSyncPayload(Map<ResourceLocation, TierDefinition> tiers, Map<ResourceLocation, BlueprintDefinition> blueprints)
-        implements CustomPacketPayload {
+/**
+ * Sends tiers, blueprint definitions and research profiles to clients so the Archive screen can show the next
+ * step's price. Sources never leave the server.
+ */
+public record BlueprintSyncPayload(
+        Map<ResourceLocation, TierDefinition> tiers,
+        Map<ResourceLocation, BlueprintDefinition> blueprints,
+        Map<ResourceLocation, ResearchProfile> research,
+        Map<ResourceLocation, ResourceLocation> researchForBlueprint
+) implements CustomPacketPayload {
     public static final Type<BlueprintSyncPayload> TYPE = new Type<>(BlueprintForge.id("definitions"));
 
     private static final Codec<BlueprintSyncPayload> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.unboundedMap(ResourceLocation.CODEC, TierDefinition.CODEC).fieldOf("tiers").forGetter(BlueprintSyncPayload::tiers),
-            Codec.unboundedMap(ResourceLocation.CODEC, BlueprintDefinition.CODEC).fieldOf("blueprints").forGetter(BlueprintSyncPayload::blueprints)
+            Codec.unboundedMap(ResourceLocation.CODEC, BlueprintDefinition.CODEC).fieldOf("blueprints").forGetter(BlueprintSyncPayload::blueprints),
+            Codec.unboundedMap(ResourceLocation.CODEC, ResearchProfile.CODEC).fieldOf("research").forGetter(BlueprintSyncPayload::research),
+            Codec.unboundedMap(ResourceLocation.CODEC, ResourceLocation.CODEC).fieldOf("research_for").forGetter(BlueprintSyncPayload::researchForBlueprint)
     ).apply(i, BlueprintSyncPayload::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, BlueprintSyncPayload> STREAM_CODEC =
             ByteBufCodecs.fromCodecWithRegistriesTrusted(CODEC);
 
     public static BlueprintSyncPayload current() {
-        return new BlueprintSyncPayload(TierRegistry.all(), BlueprintRegistry.all());
+        return new BlueprintSyncPayload(TierRegistry.all(), BlueprintRegistry.all(), ResearchRegistry.all(), ResearchRegistry.assignments());
     }
 
     @Override
