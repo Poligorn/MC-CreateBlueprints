@@ -1,0 +1,14 @@
+{
+  "output_blueprint": "blueprintforge:industrial_blade",
+  "fragments_required": 12,
+  "fragment_item": "blueprintforge:industrial_blade_fragment",
+  "machine": "blueprintforge:blueprint_archive",
+  "process_time_ticks": 200,
+  "extra_ingredients": [
+    { "item": "minecraft:iron_block", "count": 4 },
+    { "item": "minecraft:paper", "count": 8 }
+  ],
+  "one_time_per_chunk": false,
+  "announce_to_server": true,
+  "stress": 512
+}

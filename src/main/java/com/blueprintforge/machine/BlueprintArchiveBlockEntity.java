@@ -7,6 +7,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.WeakHashMap;
 
+import com.blueprintforge.BlueprintForge;
+import com.blueprintforge.data.AssemblyRecipe;
+import com.blueprintforge.data.AssemblyRegistry;
 import com.blueprintforge.data.BlueprintClass;
 import com.blueprintforge.data.BlueprintData;
 import com.blueprintforge.data.BlueprintDefinition;
@@ -16,6 +19,9 @@ import com.blueprintforge.data.ResearchRegistry;
 import com.blueprintforge.data.TierDefinition;
 import com.blueprintforge.data.TierRegistry;
 import com.blueprintforge.item.BlueprintItem;
+import com.blueprintforge.logic.ArchiveRefusal;
+import com.blueprintforge.logic.AssemblyMatching;
+import com.blueprintforge.logic.CopyRunWarning;
 import com.blueprintforge.logic.EfficiencyMath;
 import com.blueprintforge.logic.ItemRemake;
 import com.blueprintforge.logic.RemakeMath;
@@ -35,6 +41,7 @@ import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -58,7 +65,7 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     private static final String BLUEPRINT_TAG = "Blueprint";
     /** Sentinel: the replacement is already queued, so a second tick must not spend another run. */
     private static final int FINISHED = Integer.MIN_VALUE;
-    public static final int MATERIAL_SLOTS = 4;
+    public static final int MATERIAL_SLOTS = 16;
     public static final int DATA_ME = 0;
     public static final int DATA_ME_MAX = 1;
     public static final int DATA_TE = 2;
@@ -71,7 +78,14 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     public static final int DATA_ME_REFUSAL = 9;
     public static final int DATA_TE_REFUSAL = 10;
     public static final int DATA_STRESS = 11;
-    public static final int DATA_COUNT = 12;
+    public static final int DATA_COPY_RUNS = 12;
+    public static final int DATA_COPY_MAX = 13;
+    public static final int DATA_COPY_REFUSAL = 14;
+    public static final int DATA_JOB = 15;
+    public static final int DATA_PRESSING = 16;
+    public static final int DATA_PRESS_PROGRESS = 17;
+    public static final int DATA_PRESS_TOTAL = 18;
+    public static final int DATA_COUNT = 19;
     private static final String MATERIALS_TAG = "Materials";
     private static final String RESEARCH_AXIS_TAG = "ResearchAxis";
 
@@ -86,6 +100,7 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     };
 
     private final ItemStackHandler materials = new MaterialSlot();
+    private final ItemStackHandler output = new OutputSlot();
 
     /** Countdown per belt item. Not saved: a reload restarts the hold and does not forge a partial result. */
     private final Map<TransportedItemStack, Job> jobs = new WeakHashMap<>();
@@ -98,6 +113,23 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     private UUID researchPlayer;
     private String researchPlayerName;
     private boolean stressDirty;
+    private boolean copying;
+    private boolean assembling;
+    private int jobProgress;
+    private int jobTotal;
+    private int jobStress;
+    private UUID jobInstance;
+    private UUID copyPlayer;
+    private String copyPlayerName;
+    private int selectedRuns = 1;
+    private final List<ItemStack> reserved = new ArrayList<>();
+    private ResourceLocation assemblyId;
+    private UUID heldInstance;
+    private boolean occupancyReady;
+    private boolean clientPressing;
+    private int clientPressProgress;
+    private int clientPressTotal;
+    private boolean pressSync;
 
     public BlueprintArchiveBlockEntity(BlockPos pos, BlockState state) {
         super(BFBlocks.BLUEPRINT_ARCHIVE_ENTITY.get(), pos, state);
@@ -159,7 +191,7 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     }
 
     public ResearchRefusal refusal(ResearchAxis axis) {
-        if (researchAxis != null) {
+        if (isBusy()) {
             return ResearchRefusal.BUSY;
         }
         BlueprintData data = BlueprintItem.data(getDocument()).orElse(null);
@@ -224,10 +256,16 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
         if (level == null || level.isClientSide) {
             return;
         }
+        if (!occupancyReady) {
+            occupancyReady = true;
+            syncOccupancy();
+        }
         if (stressDirty) {
             pushStress();
             stressDirty = false;
         }
+        tickJob();
+        syncPress();
         if (researchAxis == null) {
             return;
         }
@@ -249,7 +287,7 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
 
     @Override
     public float calculateStressApplied() {
-        float impact = researchAxis == null ? 0.0F : researchStress;
+        float impact = researchAxis != null ? researchStress : (copying || assembling ? jobStress : 0.0F);
         this.lastStressApplied = impact;
         return impact;
     }
@@ -279,14 +317,14 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
             if (ticks <= 0) {
                 return ProcessingResult.PASS;
             }
-            jobs.put(transported, new Job(offer.definitionId(), ticks));
+            jobs.put(transported, new Job(offer.definitionId(), ticks, ticks));
             return ProcessingResult.HOLD;
         }
 
         Job job = jobs.get(transported);
         if (job == null || !job.definitionId().equals(offer.definitionId())) {
             int ticks = RemakeMath.processingTicks(Math.abs(getSpeed()), offer.processingTime());
-            job = new Job(offer.definitionId(), ticks > 0 ? ticks : 1);
+            job = new Job(offer.definitionId(), ticks > 0 ? ticks : 1, ticks > 0 ? ticks : 1);
             jobs.put(transported, job);
         }
         if (job.remaining() == FINISHED) {
@@ -297,7 +335,7 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
         }
         int left = job.remaining() - 1;
         if (left > 0) {
-            jobs.put(transported, new Job(job.definitionId(), left));
+            jobs.put(transported, new Job(job.definitionId(), left, job.total()));
             return ProcessingResult.HOLD;
         }
 
@@ -307,7 +345,7 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
         replacement.stack = forged;
         replacement.locked = false;
         handler.handleProcessingOnItem(transported, TransportedResult.convertTo(replacement));
-        jobs.put(transported, new Job(job.definitionId(), FINISHED));
+        jobs.put(transported, new Job(job.definitionId(), FINISHED, job.total()));
         spendCopyRun();
         return ProcessingResult.HOLD;
     }
@@ -355,13 +393,15 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     }
 
     private void onDocumentChanged() {
-        if (researchAxis == null) {
-            return;
-        }
         BlueprintData data = BlueprintItem.data(getDocument()).orElse(null);
-        if (data == null || researchInstance == null || !researchInstance.equals(data.instanceId())) {
+        if (researchAxis != null && (data == null || researchInstance == null || !researchInstance.equals(data.instanceId()))) {
             cancelResearch();
         }
+        if (copying && (data == null || jobInstance == null || !jobInstance.equals(data.instanceId()))) {
+            cancelJob(true);
+        }
+        selectedRuns = copyRules(data).map(BlueprintDefinition.CopyRules::defaultRuns).orElse(1);
+        syncOccupancy();
     }
 
     /** Running step, ignoring the busy flag and the rotation pause. Missing items or a removed document abort it. */
@@ -510,6 +550,13 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
             case DATA_ME_REFUSAL -> refusal(ResearchAxis.MATERIAL).ordinal();
             case DATA_TE_REFUSAL -> refusal(ResearchAxis.TIME).ordinal();
             case DATA_STRESS -> researchAxis == null ? profile().map(ResearchProfile::stressPerStep).orElse(0) : researchStress;
+            case DATA_COPY_RUNS -> selectedRuns;
+            case DATA_COPY_MAX -> copyRules(data).map(BlueprintDefinition.CopyRules::maxRuns).orElse(1);
+            case DATA_COPY_REFUSAL -> getDocument().isEmpty() ? assemblyRefusal().ordinal() : copyRefusal().ordinal();
+            case DATA_JOB -> copying ? 2 : assembling ? 3 : researchAxis != null ? 1 : 0;
+            case DATA_PRESSING -> isPressing() ? 1 : 0;
+            case DATA_PRESS_PROGRESS -> pressProgress();
+            case DATA_PRESS_TOTAL -> pressTotal();
             default -> 0;
         };
     }
@@ -518,6 +565,8 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     public void destroy() {
         super.destroy();
         cancelResearch();
+        cancelJob(true);
+        releaseHeld();
         if (level == null) {
             return;
         }
@@ -533,12 +582,45 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
                 Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), stack);
             }
         }
+        ItemStack printed = output.getStackInSlot(0);
+        if (!printed.isEmpty()) {
+            output.setStackInSlot(0, ItemStack.EMPTY);
+            Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), printed);
+        }
+    }
+
+    private void releaseHeld() {
+        if (level instanceof ServerLevel server && heldInstance != null) {
+            ArchiveOccupancy.get(server).release(heldInstance, server, worldPosition);
+            heldInstance = null;
+        }
     }
 
     @Override
     protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         compound.put(BLUEPRINT_TAG, blueprintSlot.serializeNBT(registries));
         compound.put(MATERIALS_TAG, materials.serializeNBT(registries));
+        compound.put("Output", output.serializeNBT(registries));
+        compound.putInt("SelectedRuns", selectedRuns);
+        compound.putBoolean("Copying", copying);
+        compound.putBoolean("Assembling", assembling);
+        compound.putInt("JobProgress", jobProgress);
+        compound.putInt("JobTotal", jobTotal);
+        compound.putInt("JobStress", jobStress);
+        if (jobInstance != null) {
+            compound.putUUID("JobInstance", jobInstance);
+        }
+        if (assemblyId != null) {
+            compound.putString("Assembly", assemblyId.toString());
+        }
+        net.minecraft.nbt.ListTag reservedTag = new net.minecraft.nbt.ListTag();
+        for (ItemStack stack : reserved) {
+            reservedTag.add(stack.save(registries));
+        }
+        compound.put("Reserved", reservedTag);
+        compound.putBoolean("Pressing", isPressing());
+        compound.putInt("PressProgress", pressProgress());
+        compound.putInt("PressTotal", pressTotal());
         if (researchAxis != null) {
             compound.putString(RESEARCH_AXIS_TAG, researchAxis.name());
             compound.putInt("ResearchProgress", researchProgress);
@@ -561,6 +643,27 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         blueprintSlot.deserializeNBT(registries, compound.getCompound(BLUEPRINT_TAG));
         materials.deserializeNBT(registries, compound.getCompound(MATERIALS_TAG));
+        if (compound.contains("Output")) {
+            output.deserializeNBT(registries, compound.getCompound("Output"));
+        }
+        selectedRuns = Math.max(1, compound.getInt("SelectedRuns"));
+        clientPressing = compound.getBoolean("Pressing");
+        clientPressProgress = compound.getInt("PressProgress");
+        clientPressTotal = compound.getInt("PressTotal");
+        copying = compound.getBoolean("Copying");
+        assembling = compound.getBoolean("Assembling");
+        jobProgress = compound.getInt("JobProgress");
+        jobTotal = compound.getInt("JobTotal");
+        jobStress = compound.getInt("JobStress");
+        jobInstance = compound.hasUUID("JobInstance") ? compound.getUUID("JobInstance") : null;
+        assemblyId = compound.contains("Assembly") ? ResourceLocation.tryParse(compound.getString("Assembly")) : null;
+        reserved.clear();
+        for (net.minecraft.nbt.Tag entry : compound.getList("Reserved", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+            ItemStack.parse(registries, entry).ifPresent(reserved::add);
+        }
+        if (copying || assembling) {
+            stressDirty = true;
+        }
         researchAxis = null;
         if (compound.contains(RESEARCH_AXIS_TAG)) {
             try {
@@ -614,11 +717,463 @@ public class BlueprintArchiveBlockEntity extends KineticBlockEntity implements M
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            return !stack.is(BFItems.BLUEPRINT.get());
+            if (!stack.is(BFItems.BLUEPRINT.get())) {
+                return true;
+            }
+            return BlueprintItem.data(stack).map(data -> data.clazz() == BlueprintClass.FRAGMENT).orElse(false);
         }
     }
 
-    private record Job(ResourceLocation definitionId, int remaining) {
+    /** Printed copies and assembled originals are taken out, not pushed in. */
+    public static class OutputSlot extends ItemStackHandler {
+        public OutputSlot() {
+            super(1);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return false;
+        }
+    }
+
+    public ItemStackHandler getOutput() {
+        return output;
+    }
+
+    public boolean holdsInstance(UUID instanceId) {
+        return BlueprintItem.data(getDocument()).map(data -> instanceId.equals(data.instanceId())).orElse(false);
+    }
+
+    public boolean isBusy() {
+        return researchAxis != null || copying || assembling;
+    }
+
+    /** The press moves only while a research step or a belt remake is working an item. Copying does not strike. */
+    public boolean isPressing() {
+        if (level != null && level.isClientSide) {
+            return clientPressing;
+        }
+        return researchAxis != null || activeRemake() != null;
+    }
+
+    public int pressProgress() {
+        if (level != null && level.isClientSide) {
+            return clientPressProgress;
+        }
+        if (researchAxis != null) {
+            return researchProgress;
+        }
+        Job job = activeRemake();
+        return job == null ? 0 : Math.max(0, job.total() - Math.max(job.remaining(), 0));
+    }
+
+    public int pressTotal() {
+        if (level != null && level.isClientSide) {
+            return clientPressTotal;
+        }
+        if (researchAxis != null) {
+            return researchTotal;
+        }
+        Job job = activeRemake();
+        return job == null ? 0 : job.total();
+    }
+
+    public int selectedRuns() {
+        return selectedRuns;
+    }
+
+    public boolean setCopyRuns(int runs, int checksum) {
+        BlueprintDefinition.CopyRules rules = copyRules(BlueprintItem.data(getDocument()).orElse(null)).orElse(null);
+        if (rules == null) {
+            return false;
+        }
+        int clamped = EfficiencyMath.clampRuns(runs, rules.maxRuns());
+        if (copyChecksum(rules, clamped) != checksum) {
+            return false;
+        }
+        selectedRuns = clamped;
+        setChanged();
+        return true;
+    }
+
+    public void nudgeRuns(int delta) {
+        BlueprintDefinition.CopyRules rules = copyRules(BlueprintItem.data(getDocument()).orElse(null)).orElse(null);
+        int max = rules == null ? 1 : rules.maxRuns();
+        selectedRuns = EfficiencyMath.clampRuns(selectedRuns + delta, max);
+        setChanged();
+    }
+
+    public static int copyChecksum(BlueprintDefinition.CopyRules rules, int runs) {
+        int sum = 0;
+        for (BlueprintDefinition.CostEntry entry : rules.copyCost()) {
+            if (entry.itemOrFluid().left().isPresent()) {
+                sum += EfficiencyMath.copyCost(entry.amount(), runs, rules.defaultRuns(), rules.costScaling());
+            }
+        }
+        return sum;
+    }
+
+    public ArchiveRefusal tryCopy(Player player) {
+        ArchiveRefusal refusal = copyRefusal();
+        if (refusal != ArchiveRefusal.OK || level == null || level.isClientSide) {
+            return refusal == ArchiveRefusal.OK ? ArchiveRefusal.NO_ROTATION : refusal;
+        }
+        BlueprintData data = BlueprintItem.data(getDocument()).orElseThrow();
+        BlueprintDefinition.CopyRules rules = copyRules(data).orElseThrow();
+        ResearchProfile profile = profile().orElseThrow();
+        int runs = EfficiencyMath.clampRuns(selectedRuns, rules.maxRuns());
+        int perRun = RemakeMath.processingTicks(Math.abs(getSpeed()), profile.copyTimePerRunTicks());
+        if (perRun <= 0) {
+            return ArchiveRefusal.NO_ROTATION;
+        }
+        if (!reserve(scaledCost(rules, runs))) {
+            return ArchiveRefusal.MISSING_COST;
+        }
+        copying = true;
+        jobProgress = 0;
+        jobTotal = perRun * runs;
+        jobStress = profile.copyStress();
+        jobInstance = data.instanceId();
+        copyPlayer = player.getUUID();
+        copyPlayerName = player.getName().getString();
+        selectedRuns = runs;
+        pushStress();
+        setChanged();
+        sendData();
+        return ArchiveRefusal.OK;
+    }
+
+    public ArchiveRefusal copyRefusal() {
+        if (isBusy()) {
+            return ArchiveRefusal.BUSY;
+        }
+        if (!output.getStackInSlot(0).isEmpty()) {
+            return ArchiveRefusal.OUTPUT_FULL;
+        }
+        BlueprintData data = BlueprintItem.data(getDocument()).orElse(null);
+        if (data == null) {
+            return ArchiveRefusal.NO_DOCUMENT;
+        }
+        BlueprintDefinition.CopyRules rules = copyRules(data).orElse(null);
+        if (rules == null || !rules.enabled()) {
+            return ArchiveRefusal.DISABLED;
+        }
+        if (data.clazz() == BlueprintClass.COPY && !rules.allowFromCopy()) {
+            return ArchiveRefusal.COPY_FORBIDDEN;
+        }
+        if (data.clazz() != BlueprintClass.ORIGINAL && data.clazz() != BlueprintClass.COPY) {
+            return ArchiveRefusal.COPY_FORBIDDEN;
+        }
+        ResearchProfile profile = profile().orElse(null);
+        if (profile == null) {
+            return ArchiveRefusal.NO_PROFILE;
+        }
+        List<BlueprintDefinition.CostEntry> cost = scaledCost(rules, EfficiencyMath.clampRuns(selectedRuns, rules.maxRuns()));
+        if (ResearchPayment.hasFluid(cost)) {
+            return ArchiveRefusal.FLUID_COST;
+        }
+        if (!ResearchPayment.covers(cost, ResearchPayment.tally(materialStacks()))) {
+            return ArchiveRefusal.MISSING_COST;
+        }
+        if (getSpeed() == 0 || RemakeMath.processingTicks(Math.abs(getSpeed()), profile.copyTimePerRunTicks()) <= 0) {
+            return ArchiveRefusal.NO_ROTATION;
+        }
+        return ArchiveRefusal.OK;
+    }
+
+    public ArchiveRefusal tryAssemble(Player player) {
+        ArchiveRefusal refusal = assemblyRefusal();
+        if (refusal != ArchiveRefusal.OK || !(level instanceof ServerLevel server)) {
+            return refusal == ArchiveRefusal.OK ? ArchiveRefusal.NO_ROTATION : refusal;
+        }
+        Map.Entry<ResourceLocation, AssemblyRecipe> match = assemblyMatch().orElseThrow();
+        if (!reserveAssembly(match.getValue())) {
+            return ArchiveRefusal.ASSEMBLY_SHORT;
+        }
+        assembling = true;
+        assemblyId = match.getKey();
+        jobProgress = 0;
+        jobTotal = RemakeMath.processingTicks(Math.abs(getSpeed()), match.getValue().processTimeTicks());
+        jobStress = match.getValue().stress();
+        if (jobTotal <= 0) {
+            cancelJob(true);
+            return ArchiveRefusal.NO_ROTATION;
+        }
+        pushStress();
+        setChanged();
+        sendData();
+        return ArchiveRefusal.OK;
+    }
+
+    public ArchiveRefusal assemblyRefusal() {
+        if (isBusy()) {
+            return ArchiveRefusal.BUSY;
+        }
+        if (!getDocument().isEmpty()) {
+            return ArchiveRefusal.NO_DOCUMENT;
+        }
+        if (!output.getStackInSlot(0).isEmpty()) {
+            return ArchiveRefusal.OUTPUT_FULL;
+        }
+        Map.Entry<ResourceLocation, AssemblyRecipe> match = assemblyMatch().orElse(null);
+        if (match == null) {
+            return ArchiveRefusal.ASSEMBLY_SHORT;
+        }
+        if (level instanceof ServerLevel server && match.getValue().oneTimePerChunk()) {
+            String key = AssemblyClaims.key(match.getKey(), server.dimension(), worldPosition.getX() >> 4, worldPosition.getZ() >> 4);
+            if (AssemblyClaims.get(server).claimed(key)) {
+                return ArchiveRefusal.ALREADY_DONE;
+            }
+        }
+        if (ResearchPayment.hasFluid(match.getValue().extraIngredients())) {
+            return ArchiveRefusal.FLUID_COST;
+        }
+        if (getSpeed() == 0 || RemakeMath.processingTicks(Math.abs(getSpeed()), match.getValue().processTimeTicks()) <= 0) {
+            return ArchiveRefusal.NO_ROTATION;
+        }
+        return ArchiveRefusal.OK;
+    }
+
+    private void tickJob() {
+        if (!copying && !assembling) {
+            return;
+        }
+        if (copying) {
+            BlueprintData data = BlueprintItem.data(getDocument()).orElse(null);
+            if (data == null || jobInstance == null || !jobInstance.equals(data.instanceId())) {
+                cancelJob(true);
+                return;
+            }
+        } else if (!getDocument().isEmpty()) {
+            cancelJob(true);
+            return;
+        }
+        if (getSpeed() == 0) {
+            return;
+        }
+        jobProgress++;
+        if (jobProgress >= jobTotal) {
+            if (copying) {
+                finishCopy();
+            } else {
+                finishAssembly();
+            }
+        }
+    }
+
+    private void finishCopy() {
+        BlueprintData data = BlueprintItem.data(getDocument()).orElse(null);
+        BlueprintDefinition.CopyRules rules = copyRules(data).orElse(null);
+        if (data == null || rules == null || !output.getStackInSlot(0).isEmpty()) {
+            cancelJob(true);
+            return;
+        }
+        int runs = EfficiencyMath.clampRuns(selectedRuns, rules.maxRuns());
+        int me = EfficiencyMath.penalized(data.materialEfficiency(), rules.mePenalty());
+        int te = EfficiencyMath.penalized(data.timeEfficiency(), rules.tePenalty());
+        ItemStack copy = new ItemStack(BFItems.BLUEPRINT.get());
+        copy.set(BFComponents.BLUEPRINT.get(), data.printedCopy(UUID.randomUUID(), runs, me, te,
+                Optional.ofNullable(copyPlayer), Optional.ofNullable(copyPlayerName)));
+        reserved.clear();
+        copying = false;
+        jobStress = 0;
+        output.setStackInSlot(0, copy);
+        pushStress();
+        setChanged();
+        sendData();
+    }
+
+    private void finishAssembly() {
+        AssemblyRecipe recipe = assemblyId == null ? null : AssemblyRegistry.get(assemblyId).orElse(null);
+        BlueprintDefinition definition = recipe == null ? null : BlueprintRegistry.get(recipe.outputBlueprint()).orElse(null);
+        if (recipe == null || definition == null || !output.getStackInSlot(0).isEmpty()) {
+            cancelJob(true);
+            return;
+        }
+        ItemStack original = BlueprintItem.createInstance(recipe.outputBlueprint(), definition, UUID.randomUUID());
+        reserved.clear();
+        assembling = false;
+        jobStress = 0;
+        output.setStackInSlot(0, original);
+        if (recipe.oneTimePerChunk() && level instanceof ServerLevel server) {
+            AssemblyClaims.get(server).claim(AssemblyClaims.key(assemblyId, server.dimension(), worldPosition.getX() >> 4, worldPosition.getZ() >> 4));
+        }
+        if (recipe.announceToServer() && level instanceof ServerLevel server && server.getServer() != null) {
+            Component name = definition.display().name();
+            Component tier = TierRegistry.get(definition.tier()).map(TierDefinition::display).orElseGet(() -> Component.translatable("tooltip.blueprintforge.tier.unknown"));
+            server.getServer().getPlayerList().broadcastSystemMessage(
+                    Component.translatable("message.blueprintforge.assembly", name, tier), false);
+        }
+        assemblyId = null;
+        pushStress();
+        setChanged();
+        sendData();
+    }
+
+    private void cancelJob(boolean refund) {
+        copying = false;
+        assembling = false;
+        jobProgress = 0;
+        jobTotal = 0;
+        jobStress = 0;
+        jobInstance = null;
+        assemblyId = null;
+        if (refund) {
+            refundReserved();
+        } else {
+            reserved.clear();
+        }
+        if (level != null && !level.isClientSide) {
+            pushStress();
+            sendData();
+        }
+        setChanged();
+    }
+
+    private boolean reserve(List<BlueprintDefinition.CostEntry> cost) {
+        if (!ResearchPayment.covers(cost, ResearchPayment.tally(materialStacks()))) {
+            return false;
+        }
+        List<ItemStack> taken = new ArrayList<>();
+        for (BlueprintDefinition.CostEntry entry : cost) {
+            ResourceLocation item = entry.itemOrFluid().left().orElse(null);
+            if (item == null) {
+                return false;
+            }
+            int need = entry.amount();
+            ItemStack pile = new ItemStack(BuiltInRegistries.ITEM.get(item), 0);
+            for (int slot = 0; slot < materials.getSlots() && need > 0; slot++) {
+                ItemStack stack = materials.getStackInSlot(slot);
+                if (stack.isEmpty() || !BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(item)) {
+                    continue;
+                }
+                int take = Math.min(need, stack.getCount());
+                stack.shrink(take);
+                pile.grow(take);
+                need -= take;
+            }
+            if (need > 0 || pile.isEmpty()) {
+                refundStacks(taken);
+                return false;
+            }
+            taken.add(pile);
+        }
+        reserved.addAll(taken);
+        return true;
+    }
+
+    private boolean reserveAssembly(AssemblyRecipe recipe) {
+        int need = recipe.fragmentsRequired();
+        List<ItemStack> taken = new ArrayList<>();
+        for (int slot = 0; slot < materials.getSlots() && need > 0; slot++) {
+            ItemStack stack = materials.getStackInSlot(slot);
+            BlueprintData data = BlueprintItem.data(stack).orElse(null);
+            if (data == null || data.clazz() != BlueprintClass.FRAGMENT || !recipe.fragmentBlueprint().equals(data.definitionId())) {
+                continue;
+            }
+            taken.add(stack.copy());
+            materials.setStackInSlot(slot, ItemStack.EMPTY);
+            need--;
+        }
+        if (need > 0) {
+            refundStacks(taken);
+            return false;
+        }
+        if (!reserve(recipe.extraIngredients())) {
+            refundStacks(taken);
+            return false;
+        }
+        reserved.addAll(0, taken);
+        return true;
+    }
+
+    private void refundReserved() {
+        List<ItemStack> stacks = new ArrayList<>(reserved);
+        reserved.clear();
+        refundStacks(stacks);
+    }
+
+    private void refundStacks(List<ItemStack> stacks) {
+        for (ItemStack stack : stacks) {
+            ItemStack left = stack.copy();
+            for (int slot = 0; slot < materials.getSlots() && !left.isEmpty(); slot++) {
+                left = materials.insertItem(slot, left, false);
+            }
+            if (!left.isEmpty() && level != null) {
+                Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), left);
+            }
+        }
+    }
+
+    private List<BlueprintDefinition.CostEntry> scaledCost(BlueprintDefinition.CopyRules rules, int runs) {
+        List<BlueprintDefinition.CostEntry> scaled = new ArrayList<>();
+        for (BlueprintDefinition.CostEntry entry : rules.copyCost()) {
+            int amount = EfficiencyMath.copyCost(entry.amount(), runs, rules.defaultRuns(), rules.costScaling());
+            if (amount > 0) {
+                scaled.add(new BlueprintDefinition.CostEntry(entry.itemOrFluid(), amount));
+            }
+        }
+        return scaled;
+    }
+
+    private Optional<BlueprintDefinition.CopyRules> copyRules(BlueprintData data) {
+        if (data == null) {
+            return Optional.empty();
+        }
+        return BlueprintRegistry.get(data.definitionId()).flatMap(BlueprintDefinition::copy);
+    }
+
+    private Optional<Map.Entry<ResourceLocation, AssemblyRecipe>> assemblyMatch() {
+        Optional<ResourceLocation> id = AssemblyMatching.match(AssemblyRegistry.all(), materialStacks());
+        return id.flatMap(key -> AssemblyRegistry.get(key).map(recipe -> Map.entry(key, recipe)));
+    }
+
+    private Job activeRemake() {
+        for (Job job : jobs.values()) {
+            if (job.remaining() != FINISHED && job.remaining() > 0) {
+                return job;
+            }
+        }
+        return null;
+    }
+
+    private void syncPress() {
+        boolean pressing = isPressing();
+        if (pressing || pressSync) {
+            sendData();
+        }
+        pressSync = pressing;
+    }
+
+    private void syncOccupancy() {
+        if (!(level instanceof ServerLevel server) || adjusting) {
+            return;
+        }
+        BlueprintData data = BlueprintItem.data(getDocument()).orElse(null);
+        UUID now = data == null || data.isUnissued() ? null : data.instanceId();
+        if (heldInstance != null && !heldInstance.equals(now)) {
+            ArchiveOccupancy.get(server).release(heldInstance, server, worldPosition);
+            heldInstance = null;
+        }
+        if (now == null || now.equals(heldInstance)) {
+            return;
+        }
+        if (!ArchiveOccupancy.get(server).claim(server, now, worldPosition)) {
+            adjusting = true;
+            ItemStack rejected = getDocument().copy();
+            blueprintSlot.setStackInSlot(0, ItemStack.EMPTY);
+            adjusting = false;
+            heldInstance = null;
+            Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), rejected);
+            BlueprintForge.LOGGER.warn("Blueprint {} is already held by another Archive; dropped the duplicate at {}", now, worldPosition);
+            return;
+        }
+        heldInstance = now;
+    }
+
+    private boolean adjusting;
+
+    private record Job(ResourceLocation definitionId, int remaining, int total) {
     }
 
     private record Offer(ResourceLocation definitionId, BlueprintDefinition definition, TierDefinition tier, int processingTime) {

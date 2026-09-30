@@ -16,6 +16,8 @@ public final class BFConfig {
     public static final ModConfigSpec.BooleanValue DISABLE_BOOKS;
     public static final ModConfigSpec.DoubleValue RARITY_MULTIPLIER;
     public static final ModConfigSpec.BooleanValue FITTINGS_ENABLED;
+    public static final ModConfigSpec.BooleanValue ALLOW_FAKE_PLAYERS;
+    public static final ModConfigSpec.IntValue TRANSFER_TIMEOUT_SECONDS;
 
     private static boolean fittingsWarned;
 
@@ -35,6 +37,18 @@ public final class BFConfig {
         RARITY_MULTIPLIER = builder
                 .comment("Scales the chance of every blueprint source; the result is clamped to 0..1")
                 .defineInRange("multiplier", 1.0, 0.0, 1000.0);
+        builder.pop();
+
+        builder.push("drops");
+        ALLOW_FAKE_PLAYERS = builder
+                .comment("When false, fake players do not roll mob or fishing blueprint drops")
+                .define("allow_fake_players", false);
+        builder.pop();
+
+        builder.push("transfer");
+        TRANSFER_TIMEOUT_SECONDS = builder
+                .comment("Seconds the other player has to accept a handed transfer")
+                .defineInRange("confirm_timeout_seconds", 60, 5, 600);
         builder.pop();
 
         builder.push("fittings");
@@ -59,6 +73,14 @@ public final class BFConfig {
 
     public static double rarityMultiplier() {
         return RARITY_MULTIPLIER.get();
+    }
+
+    public static boolean allowFakePlayers() {
+        return ALLOW_FAKE_PLAYERS.get();
+    }
+
+    public static int transferTimeoutSeconds() {
+        return TRANSFER_TIMEOUT_SECONDS.get();
     }
 
     static void onConfigLoad(ModConfigEvent event) {

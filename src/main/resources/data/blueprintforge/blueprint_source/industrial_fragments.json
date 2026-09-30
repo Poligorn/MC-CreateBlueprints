@@ -1,0 +1,19 @@
+{
+  "blueprint": "blueprintforge:industrial_blade_fragment",
+  "weight": 1,
+  "conditions": { "dimensions": ["minecraft:overworld"] },
+  "sources": [
+    {
+      "type": "mob_drop",
+      "entities": ["minecraft:elder_guardian"],
+      "chance": 0.15,
+      "requires_player_kill": true,
+      "looting_bonus": 0.05
+    },
+    {
+      "type": "fishing",
+      "chance": 0.02,
+      "luck_scale": 0.01
+    }
+  ]
+}

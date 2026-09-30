@@ -1,0 +1,13 @@
+{
+  "tier": 3,
+  "class": "fragment",
+  "target": "minecraft:iron_sword",
+  "output": { "attributes": [], "durability_multiplier": 1.0, "count": 1 },
+  "fitting_slots": 1,
+  "display": {
+    "name": { "translate": "blueprint.blueprintforge.industrial_blade_fragment" },
+    "lore_line": { "translate": "blueprint.blueprintforge.industrial_blade_fragment.lore" }
+  },
+  "tooltip_flags": ["show_target"],
+  "tags": ["blueprintforge:fragments", "blueprintforge:tier3"]
+}

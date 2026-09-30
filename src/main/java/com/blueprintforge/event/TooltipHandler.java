@@ -10,6 +10,7 @@ import com.blueprintforge.data.ForgedItemData;
 import com.blueprintforge.data.TierDefinition;
 import com.blueprintforge.data.TierRegistry;
 import com.blueprintforge.item.BlueprintItem;
+import com.blueprintforge.logic.ProductionMath;
 import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.registry.BFItems;
 
@@ -63,8 +64,19 @@ public final class TooltipHandler {
         List<Component> lines = new ArrayList<>();
         lines.add(classLine.copy().withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("tooltip.blueprintforge.tier", tierName(data.tierId())).withStyle(ChatFormatting.GRAY));
+        lines.add(Component.translatable("tooltip.blueprintforge.efficiency", data.materialEfficiency(), data.timeEfficiency())
+                .withStyle(ChatFormatting.GRAY));
+        BlueprintRegistry.get(data.definitionId()).flatMap(def -> def.target()).ifPresent(target ->
+                lines.add(Component.translatable("tooltip.blueprintforge.target", target.toString()).withStyle(ChatFormatting.GRAY)));
+        data.researcherName().ifPresent(name ->
+                lines.add(Component.translatable("tooltip.blueprintforge.researcher", name).withStyle(ChatFormatting.GRAY)));
+        data.copierName().ifPresent(name ->
+                lines.add(Component.translatable("tooltip.blueprintforge.copier", name).withStyle(ChatFormatting.GRAY)));
         data.ownerName().ifPresent(owner ->
                 lines.add(Component.translatable("tooltip.blueprintforge.owner", owner).withStyle(ChatFormatting.GRAY)));
+        if (ProductionMath.warnRuns(data.runsRemaining())) {
+            lines.add(Component.translatable("message.blueprintforge.copy_runs", data.runsRemaining()).withStyle(ChatFormatting.RED));
+        }
         return lines;
     }
 

@@ -9,6 +9,9 @@ import com.blueprintforge.data.BlueprintRegistry;
 import com.blueprintforge.data.ResearchProfile;
 import com.blueprintforge.data.ResearchRegistry;
 import com.blueprintforge.item.BlueprintItem;
+import com.blueprintforge.logic.ArchivePress;
+import com.blueprintforge.logic.ArchiveRefusal;
+import com.blueprintforge.logic.EfficiencyMath;
 import com.blueprintforge.logic.ResearchAxis;
 import com.blueprintforge.logic.ResearchRefusal;
 import com.blueprintforge.machine.BlueprintArchiveBlockEntity;
@@ -44,6 +47,8 @@ public class BlueprintArchiveScreen extends AbstractContainerScreen<BlueprintArc
 
     private Button materialButton;
     private Button timeButton;
+    private Button copyButton;
+    private Button assembleButton;
 
     public BlueprintArchiveScreen(BlueprintArchiveMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -63,6 +68,14 @@ public class BlueprintArchiveScreen extends AbstractContainerScreen<BlueprintArc
                         button -> click(1))
                 .bounds(leftPos + 118, topPos + 100, 52, 16)
                 .build());
+        addRenderableWidget(Button.builder(Component.literal("−"), button -> click(3))
+                .bounds(leftPos + 8, topPos + 132, 16, 16).build());
+        addRenderableWidget(Button.builder(Component.literal("+"), button -> click(4))
+                .bounds(leftPos + 26, topPos + 132, 16, 16).build());
+        copyButton = addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.archive.copy_button"), button -> click(2))
+                .bounds(leftPos + 118, topPos + 132, 52, 16).build());
+        assembleButton = addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.archive.assemble_button"), button -> click(5))
+                .bounds(leftPos + 118, topPos + 132, 52, 16).build());
     }
 
     private void click(int id) {
@@ -79,6 +92,16 @@ public class BlueprintArchiveScreen extends AbstractContainerScreen<BlueprintArc
         }
         if (timeButton != null) {
             timeButton.active = menu.datum(BlueprintArchiveBlockEntity.DATA_TE_REFUSAL) == ResearchRefusal.OK.ordinal();
+        }
+        boolean assembling = menu.document().isEmpty();
+        if (copyButton != null) {
+            copyButton.visible = !assembling;
+            copyButton.active = menu.datum(BlueprintArchiveBlockEntity.DATA_COPY_REFUSAL) == ArchiveRefusal.OK.ordinal();
+        }
+        if (assembleButton != null) {
+            assembleButton.visible = assembling;
+            assembleButton.active = menu.datum(BlueprintArchiveBlockEntity.DATA_COPY_REFUSAL) == ArchiveRefusal.OK.ordinal()
+                    && assembling && menu.datum(BlueprintArchiveBlockEntity.DATA_JOB) == 0;
         }
     }
 
@@ -119,6 +142,21 @@ public class BlueprintArchiveScreen extends AbstractContainerScreen<BlueprintArc
             int filled = Math.min(barWidth, progress * barWidth / total);
             graphics.fill(barX, barY, barX + filled, barY + 6, BAR_FILL);
         }
+        drawPress(graphics, x, y, partialTick);
+    }
+
+    /** The same stroke the block renderer uses, so the operator sees the press with the menu open. */
+    private void drawPress(GuiGraphics graphics, int x, int y, float partialTick) {
+        boolean working = menu.datum(BlueprintArchiveBlockEntity.DATA_PRESSING) == 1;
+        float down = ArchivePress.headDown(working, menu.networkSpeed(),
+                menu.datum(BlueprintArchiveBlockEntity.DATA_PRESS_PROGRESS),
+                menu.datum(BlueprintArchiveBlockEntity.DATA_PRESS_TOTAL), partialTick);
+        int trackTop = y + 20;
+        int travel = 28;
+        graphics.fill(x + 154, trackTop, x + 158, trackTop + travel, 0xFF3A342C);
+        int head = trackTop + Math.round(down * (travel - 6));
+        graphics.fill(x + 146, head, x + 166, head + 5, 0xFFC4A15A);
+        graphics.fill(x + 152, trackTop, x + 156, head + 2, 0xFF8A7340);
     }
 
     @Override
@@ -155,6 +193,41 @@ public class BlueprintArchiveScreen extends AbstractContainerScreen<BlueprintArc
                     menu.datum(BlueprintArchiveBlockEntity.DATA_PROGRESS), menu.datum(BlueprintArchiveBlockEntity.DATA_TOTAL));
             graphics.drawString(font, progress, 8, 112, TEXT_OK, false);
         }
+        drawJob(graphics);
+    }
+
+    private void drawJob(GuiGraphics graphics) {
+        if (menu.document().isEmpty()) {
+            ArchiveRefusal refusal = jobRefusal();
+            Component line = refusal == ArchiveRefusal.OK
+                    ? Component.translatable("gui.blueprintforge.archive.assemble_ready")
+                    : Component.translatable(refusal.translationKey());
+            graphics.drawString(font, font.split(line, imageWidth - 16).getFirst(), 8, 148, TEXT, false);
+            return;
+        }
+        int runs = menu.datum(BlueprintArchiveBlockEntity.DATA_COPY_RUNS);
+        int max = Math.max(1, menu.datum(BlueprintArchiveBlockEntity.DATA_COPY_MAX));
+        graphics.drawString(font, Component.translatable("gui.blueprintforge.archive.copy_runs", runs, max), 46, 136, TEXT, false);
+        BlueprintData data = BlueprintItem.data(menu.document()).orElse(null);
+        BlueprintDefinition definition = data == null ? null : BlueprintRegistry.get(data.definitionId()).orElse(null);
+        if (definition != null && definition.copy().isPresent()) {
+            BlueprintDefinition.CopyRules rules = definition.copy().get();
+            int quoted = 0;
+            for (BlueprintDefinition.CostEntry entry : rules.copyCost()) {
+                quoted += EfficiencyMath.copyCost(entry.amount(), EfficiencyMath.clampRuns(runs, rules.maxRuns()),
+                        rules.defaultRuns(), rules.costScaling());
+            }
+            graphics.drawString(font, Component.translatable("gui.blueprintforge.archive.copy_price", quoted), 8, 148, TEXT, false);
+        }
+    }
+
+    private ArchiveRefusal jobRefusal() {
+        ArchiveRefusal[] values = ArchiveRefusal.values();
+        int ordinal = menu.datum(BlueprintArchiveBlockEntity.DATA_COPY_REFUSAL);
+        if (ordinal < 0 || ordinal >= values.length) {
+            return ArchiveRefusal.DISABLED;
+        }
+        return values[ordinal];
     }
 
     private void drawAxis(GuiGraphics graphics, ResearchAxis axis, int valueIndex, int maxIndex, int nextIndex, int refusalIndex, int y) {

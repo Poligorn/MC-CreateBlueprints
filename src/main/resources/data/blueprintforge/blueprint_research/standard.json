@@ -1,5 +1,13 @@
 {
-  "applies_to": ["blueprintforge:guild_blade"],
+  "applies_to": [
+    "blueprintforge:guild_blade",
+    "blueprintforge:guild_pickaxe",
+    "blueprintforge:guild_chestplate",
+    "blueprintforge:industrial_blade",
+    "blueprintforge:relic_blade"
+  ],
+  "copy_time_per_run_ticks": 80,
+  "copy_stress": 256,
   "me_step_cost": [{ "item": "minecraft:iron_ingot", "count": 4 }],
   "te_step_cost": [{ "item": "minecraft:redstone", "count": 8 }],
   "stress_per_step": 256,

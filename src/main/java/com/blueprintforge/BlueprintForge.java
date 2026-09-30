@@ -6,7 +6,10 @@ import org.slf4j.LoggerFactory;
 import com.blueprintforge.client.BlueprintForgeClient;
 import com.blueprintforge.data.BlueprintDataLoader;
 import com.blueprintforge.data.BlueprintSyncPayload;
+import com.blueprintforge.command.BFCommands;
 import com.blueprintforge.event.CreativeIssueHandler;
+import com.blueprintforge.event.FirstBlueprintHandler;
+import com.blueprintforge.event.WorldDropHandler;
 import com.blueprintforge.event.EnchantingHandler;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
@@ -14,6 +17,7 @@ import com.blueprintforge.registry.BFCreativeTabs;
 import com.blueprintforge.registry.BFItems;
 import com.blueprintforge.registry.BFLootModifiers;
 import com.blueprintforge.registry.BFMenus;
+import com.blueprintforge.registry.BFRecipeTypes;
 
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
@@ -43,6 +47,7 @@ public final class BlueprintForge {
         BFMenus.MENUS.register(modBus);
         BFCreativeTabs.TABS.register(modBus);
         BFLootModifiers.SERIALIZERS.register(modBus);
+        BFRecipeTypes.INGREDIENT_TYPES.register(modBus);
 
         container.registerConfig(ModConfig.Type.COMMON, BFConfig.SPEC, BFConfig.FILE_NAME);
         modBus.addListener(ModConfigEvent.Loading.class, BFConfig::onConfigLoad);
@@ -53,6 +58,9 @@ public final class BlueprintForge {
         NeoForge.EVENT_BUS.addListener(BlueprintForge::syncDefinitions);
         EnchantingHandler.register(NeoForge.EVENT_BUS);
         CreativeIssueHandler.register(NeoForge.EVENT_BUS);
+        WorldDropHandler.register(NeoForge.EVENT_BUS);
+        FirstBlueprintHandler.register(NeoForge.EVENT_BUS);
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.RegisterCommandsEvent event) -> BFCommands.register(event));
     }
 
     public static ResourceLocation id(String path) {
@@ -78,7 +86,8 @@ public final class BlueprintForge {
         context.enqueueWork(() -> {
             // An integrated server already holds these definitions in the same JVM.
             if (ServerLifecycleHooks.getCurrentServer() == null) {
-                BlueprintDataLoader.acceptSynced(payload.tiers(), payload.blueprints(), payload.research(), payload.researchForBlueprint());
+                BlueprintDataLoader.acceptSynced(payload.tiers(), payload.blueprints(), payload.research(),
+                        payload.researchForBlueprint(), payload.assemblies());
             }
             if (FMLEnvironment.dist.isClient()) {
                 BlueprintForgeClient.onDefinitionsSynced();

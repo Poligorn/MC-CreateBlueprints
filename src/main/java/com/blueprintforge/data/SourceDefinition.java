@@ -19,7 +19,14 @@ import net.minecraft.world.level.biome.Biome;
 /**
  * A {@code blueprint_source/*.json} file after the loader kept the source types this version understands.
  */
-public record SourceDefinition(ResourceLocation blueprint, int weight, Conditions conditions, List<LootInjection> lootInjections) {
+public record SourceDefinition(
+        ResourceLocation blueprint,
+        int weight,
+        Conditions conditions,
+        List<LootInjection> lootInjections,
+        List<MobDrop> mobDrops,
+        List<Fishing> fishing
+) {
 
     /** First-pass shape: {@code sources[]} stays raw so an unsupported type does not reject the whole file. */
     public record Raw(ResourceLocation blueprint, int weight, Conditions conditions, List<Dynamic<?>> sources) {
@@ -40,7 +47,31 @@ public record SourceDefinition(ResourceLocation blueprint, int weight, Condition
                 Codec.floatRange(0.0F, 1.0F).fieldOf("chance").forGetter(LootInjection::chance)
         ).apply(i, LootInjection::new)).validate(l -> l.targetTables.isEmpty()
                 ? DataResult.error(() -> "target_tables must not be empty")
-                : DataResult.success(l));
+                :                 DataResult.success(l));
+    }
+
+    /** Drop from an entity. {@code lootingBonus} is added to {@code chance} once per looting level, before the rarity clamp. */
+    public record MobDrop(List<ResourceLocation> entities, float chance, boolean requiresPlayerKill, float lootingBonus) {
+        public static final String TYPE = "mob_drop";
+
+        public static final Codec<MobDrop> CODEC = RecordCodecBuilder.<MobDrop>create(i -> i.group(
+                ResourceLocation.CODEC.listOf().fieldOf("entities").forGetter(MobDrop::entities),
+                Codec.floatRange(0.0F, 1.0F).fieldOf("chance").forGetter(MobDrop::chance),
+                Codec.BOOL.fieldOf("requires_player_kill").forGetter(MobDrop::requiresPlayerKill),
+                Codec.floatRange(0.0F, 1.0F).optionalFieldOf("looting_bonus", 0.0F).forGetter(MobDrop::lootingBonus)
+        ).apply(i, MobDrop::new)).validate(drop -> drop.entities.isEmpty()
+                ? DataResult.error(() -> "entities must not be empty")
+                : DataResult.success(drop));
+    }
+
+    /** Fishing rod. {@code luckScale} is added to {@code chance} once per Luck of the Sea level, before the rarity clamp. */
+    public record Fishing(float chance, float luckScale) {
+        public static final String TYPE = "fishing";
+
+        public static final Codec<Fishing> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.floatRange(0.0F, 1.0F).fieldOf("chance").forGetter(Fishing::chance),
+                Codec.floatRange(0.0F, 1.0F).optionalFieldOf("luck_scale", 0.0F).forGetter(Fishing::luckScale)
+        ).apply(i, Fishing::new));
     }
 
     /** A biome filter entry: a biome id, or a biome tag written as {@code #namespace:path}. */
