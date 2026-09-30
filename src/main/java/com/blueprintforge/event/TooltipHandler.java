@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.blueprintforge.BlueprintForge;
+import com.blueprintforge.data.BlueprintClass;
 import com.blueprintforge.data.BlueprintData;
 import com.blueprintforge.data.BlueprintRegistry;
 import com.blueprintforge.data.ForgedItemData;
@@ -63,6 +64,9 @@ public final class TooltipHandler {
         };
         List<Component> lines = new ArrayList<>();
         lines.add(classLine.copy().withStyle(ChatFormatting.GRAY));
+        if (data.clazz() == BlueprintClass.ORIGINAL || data.clazz() == BlueprintClass.COPY) {
+            lines.add(Component.translatable("tooltip.blueprintforge.production").withStyle(ChatFormatting.GRAY));
+        }
         lines.add(Component.translatable("tooltip.blueprintforge.tier", tierName(data.tierId())).withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("tooltip.blueprintforge.efficiency", data.materialEfficiency(), data.timeEfficiency())
                 .withStyle(ChatFormatting.GRAY));

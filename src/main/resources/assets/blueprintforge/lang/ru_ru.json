@@ -12,6 +12,7 @@
 
   "tooltip.blueprintforge.blank": "Документ пуст и ничего не произведёт",
   "tooltip.blueprintforge.class.original": "Оригинал: не расходуется",
+  "tooltip.blueprintforge.production": "Рецепт Create: оригинал остаётся, копия теряет прогон",
   "tooltip.blueprintforge.class.copy": "Копия: осталось прогонов — %s",
   "tooltip.blueprintforge.class.ancient": "Древний: один прогон",
   "tooltip.blueprintforge.class.fragment": "Фрагмент: часть сборки оригинала",
@@ -101,5 +102,19 @@
   "command.blueprintforge.transfer.received": "Получили %s от %s",
   "command.blueprintforge.log.empty": "Журнал передач пуст",
   "command.blueprintforge.log.line": "%s  %s → %s  %s  %s  ME %s TE %s",
-  "command.blueprintforge.validate.ok": "Датапак загрузился без ошибок"
+  "command.blueprintforge.validate.ok": "Датапак загрузился без ошибок",
+
+  "gui.blueprintforge.viewer.research": "Исследование Архива",
+  "gui.blueprintforge.viewer.copy": "Печать копии",
+  "gui.blueprintforge.viewer.tiers": "Тиры",
+  "gui.blueprintforge.viewer.step_me": "Материалы (ME) %s → %s, потолок %s",
+  "gui.blueprintforge.viewer.step_te": "Время (TE) %s → %s, потолок %s",
+  "gui.blueprintforge.viewer.copy_line": "%s прогонов. У копии ME и TE ниже на %s и %s пунктов, пол 0.",
+  "gui.blueprintforge.viewer.tier_requires": "Нужен чертёж",
+  "gui.blueprintforge.viewer.tier_free": "Чертёж не нужен",
+  "gui.blueprintforge.viewer.tier_durability": "Прочность ×%s",
+  "gui.blueprintforge.viewer.tier_no_table": "Стол зачарований этот тир не зачарует.",
+  "gui.blueprintforge.viewer.slot_rule": "В рецепте Create оригинал остаётся. Копия теряет один прогон и сгорает на последнем. Пустая копия крафт не начинает.",
+  "gui.blueprintforge.viewer.enchant_restricted": "Стол зачарований не чарует предметы, скованные по тиру, которому нужен чертёж.",
+  "gui.blueprintforge.viewer.enchant_full": "Стол зачарований на этой сборке не работает."
 }

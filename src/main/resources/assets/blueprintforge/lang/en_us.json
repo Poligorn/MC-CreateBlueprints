@@ -12,6 +12,7 @@
 
   "tooltip.blueprintforge.blank": "Empty document: it will not produce anything",
   "tooltip.blueprintforge.class.original": "Original: never consumed",
+  "tooltip.blueprintforge.production": "Create recipe: the original stays, a copy loses one run",
   "tooltip.blueprintforge.class.copy": "Copy: %s runs left",
   "tooltip.blueprintforge.class.ancient": "Ancient: a single run",
   "tooltip.blueprintforge.class.fragment": "Fragment: part of an original's assembly",
@@ -101,5 +102,19 @@
   "command.blueprintforge.transfer.received": "Received %s from %s",
   "command.blueprintforge.log.empty": "The transfer log is empty",
   "command.blueprintforge.log.line": "%s  %s → %s  %s  %s  ME %s TE %s",
-  "command.blueprintforge.validate.ok": "Datapack loaded with no errors"
+  "command.blueprintforge.validate.ok": "Datapack loaded with no errors",
+
+  "gui.blueprintforge.viewer.research": "Archive research",
+  "gui.blueprintforge.viewer.copy": "Archive copy",
+  "gui.blueprintforge.viewer.tiers": "Tiers",
+  "gui.blueprintforge.viewer.step_me": "Materials (ME) %s → %s, ceiling %s",
+  "gui.blueprintforge.viewer.step_te": "Time (TE) %s → %s, ceiling %s",
+  "gui.blueprintforge.viewer.copy_line": "%s runs. The copy's ME and TE are %s and %s points lower, floored at 0.",
+  "gui.blueprintforge.viewer.tier_requires": "Needs a blueprint",
+  "gui.blueprintforge.viewer.tier_free": "No blueprint required",
+  "gui.blueprintforge.viewer.tier_durability": "Durability ×%s",
+  "gui.blueprintforge.viewer.tier_no_table": "The enchanting table will not enchant this tier.",
+  "gui.blueprintforge.viewer.slot_rule": "In a Create recipe the original stays. A copy loses one run and is destroyed on the last. An empty copy does not start the craft.",
+  "gui.blueprintforge.viewer.enchant_restricted": "The enchanting table does not enchant items forged from a tier that needs a blueprint.",
+  "gui.blueprintforge.viewer.enchant_full": "The enchanting table does not work on this server."
 }
