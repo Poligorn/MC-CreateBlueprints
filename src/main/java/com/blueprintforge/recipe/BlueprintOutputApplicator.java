@@ -43,7 +43,7 @@ public final class BlueprintOutputApplicator {
         result.setCount(produced);
 
         List<OutputModifier> applied = new ArrayList<>();
-        ItemAttributeModifiers modifiers = result.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
+        ItemAttributeModifiers modifiers = attributeModifiers(result);
         int index = 0;
         for (OutputModifier modifier : definition.output().attributes()) {
             Optional<Holder.Reference<Attribute>> attribute = resolveAttribute(registries, modifier.attribute());
@@ -52,14 +52,14 @@ public final class BlueprintOutputApplicator {
                 index++;
                 continue;
             }
-            if (!holds(modifiers, modifier.attribute(), attribute.get())) {
+            if (!holds(modifiers, attribute.get())) {
                 BlueprintForge.LOGGER.debug("Skipping attribute {} on {}: the item does not hold it",
-                        modifier.attribute(), BuiltInRegistries.ITEM.getKey(result.getItem()));
+                        attribute.get().getKey().location(), BuiltInRegistries.ITEM.getKey(result.getItem()));
                 index++;
                 continue;
             }
             EquipmentSlotGroup slot = modifier.slot().orElse(slotAlreadyUsed(modifiers, attribute.get()));
-            ResourceLocation modifierId = BlueprintForge.id("forged/" + modifier.attribute().getPath() + "/" + index);
+            ResourceLocation modifierId = BlueprintForge.id("forged/" + attribute.get().getKey().location().getPath() + "/" + index);
             modifiers = modifiers.withModifierAdded(attribute.get(),
                     new AttributeModifier(modifierId, modifier.value(), modifier.mode().operation()), slot);
             applied.add(modifier);
@@ -76,22 +76,42 @@ public final class BlueprintOutputApplicator {
         return result;
     }
 
+    /**
+     * A fresh tool keeps its attributes on the item prototype. Prefer those over an empty override so a remake
+     * adds to the sword instead of replacing it with nothing.
+     */
+    private static ItemAttributeModifiers attributeModifiers(ItemStack stack) {
+        ItemAttributeModifiers modifiers = stack.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
+        if (!modifiers.modifiers().isEmpty()) {
+            return modifiers;
+        }
+        ItemAttributeModifiers prototype = stack.getItem().components().get(DataComponents.ATTRIBUTE_MODIFIERS);
+        return prototype != null ? prototype : modifiers;
+    }
+
+    /**
+     * 1.21.1 still registers attack damage as {@code minecraft:generic.attack_damage}. A datapack may also write
+     * the shorter id used by later versions. Whichever of the two exists in this registry is the one applied.
+     */
     private static Optional<Holder.Reference<Attribute>> resolveAttribute(RegistryAccess registries, ResourceLocation id) {
         var attributes = registries.lookupOrThrow(Registries.ATTRIBUTE);
         Optional<Holder.Reference<Attribute>> found = attributes.get(ResourceKey.create(Registries.ATTRIBUTE, id));
-        if (found.isEmpty() && "minecraft".equals(id.getNamespace()) && id.getPath().startsWith("generic.")) {
-            ResourceLocation modern = ResourceLocation.withDefaultNamespace(id.getPath().substring("generic.".length()));
-            found = attributes.get(ResourceKey.create(Registries.ATTRIBUTE, modern));
+        if (found.isEmpty() && "minecraft".equals(id.getNamespace())) {
+            String path = id.getPath();
+            ResourceLocation alias = path.startsWith("generic.")
+                    ? ResourceLocation.withDefaultNamespace(path.substring("generic.".length()))
+                    : ResourceLocation.withDefaultNamespace("generic." + path);
+            found = attributes.get(ResourceKey.create(Registries.ATTRIBUTE, alias));
             if (found.isPresent()) {
-                BlueprintForge.LOGGER.debug("Attribute {} is a pre-1.21 id; remake uses {}", id, modern);
+                BlueprintForge.LOGGER.debug("Attribute {} is not in this registry; remake uses {}", id, alias);
             }
         }
         return found;
     }
 
-    private static boolean holds(ItemAttributeModifiers modifiers, ResourceLocation id, Holder<Attribute> attribute) {
+    private static boolean holds(ItemAttributeModifiers modifiers, Holder<Attribute> attribute) {
         return modifiers.modifiers().stream().anyMatch(entry -> entry.attribute().equals(attribute)
-                || entry.attribute().unwrapKey().map(key -> key.location().equals(id)).orElse(false));
+                || entry.attribute().value() == attribute.value());
     }
 
     private static EquipmentSlotGroup slotAlreadyUsed(ItemAttributeModifiers modifiers, Holder<Attribute> attribute) {

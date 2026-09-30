@@ -4,7 +4,7 @@
   "target": "minecraft:iron_sword",
   "output": {
     "attributes": [
-      { "attribute": "minecraft:attack_damage", "mode": "multiply_total", "value": 0.15, "slot": "mainhand" }
+      { "attribute": "minecraft:generic.attack_damage", "mode": "multiply_total", "value": 0.15, "slot": "mainhand" }
     ],
     "durability_multiplier": 1.0,
     "count": 1

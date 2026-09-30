@@ -41,7 +41,7 @@ data/<namespace>/
 - `output.count` — размер выпуска, обычно 1.
 - `material_efficiency` / `time_efficiency` — объекты `{ min, max, step }`. Эталон ME: 0, 30, 3. Эталон TE: 0, 40, 5.
 - `copy` — нет у `ancient` и `fragment`. Поля: `enabled`, `default_runs`, `max_runs`, `me_penalty`, `te_penalty`, `copy_cost[]` (`item` или `fluid`, `count` / `amount`), `cost_scaling`. Дополнительное поле `allow_from_copy`, по умолчанию false.
-- `remake.processing_time` — необязательный объект. Если его нет, Архив этот чертёж на ленте не переделывает. Число — длительность в тех же единицах, что `processingTime` рецепта Create; эталон цехового клинка 100. Ноль и отрицательное значение — битая запись. Id атрибута в `output.attributes` — ванильный id 1.21 (`minecraft:attack_damage`, без префикса `generic.`).
+- `remake.processing_time` — необязательный объект. Если его нет, Архив этот чертёж на ленте не переделывает. Число — длительность в тех же единицах, что `processingTime` рецепта Create; эталон цехового клинка 100. Ноль и отрицательное значение — битая запись. Id атрибута в `output.attributes` — id реестра этой версии. В 1.21.1 урон — `minecraft:generic.attack_damage`. Загрузчик принимает и короткую форму `minecraft:attack_damage`, если в реестре есть только одна из двух, и пишет модификатор на тот id, который реально есть.
 - `fitting_slots` — необязательное переопределение тира. До фичи фитингов игроку не показывается.
 - `display.name` и строки лора — текстовые компоненты (`text` или `translate`).
 - `display.item_model` — необязательная модель поверх модели класса.
