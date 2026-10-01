@@ -25,6 +25,7 @@
   "gui.blueprintforge.archive.speed": "Скорость сети: %s об/мин",
   "gui.blueprintforge.archive.storage": "Хранит один чертёж. Исследование и печать — в Проектном бюро.",
   "gui.blueprintforge.archive.no_rotation": "Нет вращения: бюро стоит",
+  "gui.blueprintforge.bureau.table": "Стол: перерисовка и копия",
   "gui.blueprintforge.archive.empty": "Положите оригинал или копию",
   "gui.blueprintforge.archive.unknown_item": "неизвестный предмет",
   "gui.blueprintforge.archive.research_me": "Материалы (ME) %s/%s %s",

@@ -88,7 +88,7 @@ public record BlueprintData(
 
     /**
      * A printed copy of this original. New instance, penalized ME/TE, the original's owner, and the player
-     * who ran the press as the copier. The original's researcher is kept so the tooltip can name both.
+     * who pressed Print as the copier. The original's researcher is kept so the tooltip can name both.
      */
     public BlueprintData printedCopy(UUID newInstanceId, int runs, int materialEfficiency, int timeEfficiency,
                                      Optional<UUID> copier, Optional<String> copierName) {

@@ -32,7 +32,7 @@ public final class BFBlocks {
             () -> new ProjectBureauBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_BROWN)
                     .strength(3.0F, 6.0F)
-                    .sound(SoundType.NETHERITE_BLOCK)
+                    .sound(SoundType.WOOD)
                     .requiresCorrectToolForDrops()
                     .noOcclusion()));
 

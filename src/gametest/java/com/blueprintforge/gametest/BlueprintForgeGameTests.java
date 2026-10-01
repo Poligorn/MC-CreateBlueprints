@@ -17,9 +17,7 @@ import com.blueprintforge.data.ForgedItemData;
 import com.blueprintforge.data.TierRegistry;
 import com.blueprintforge.item.BlueprintItem;
 import com.blueprintforge.logic.ArchiveRefusal;
-import com.blueprintforge.logic.EfficiencyMath;
 import com.blueprintforge.logic.EnchantPolicy;
-import com.blueprintforge.logic.RemakeMath;
 import com.blueprintforge.logic.ResearchAxis;
 import com.blueprintforge.logic.ResearchRefusal;
 import com.blueprintforge.machine.BlueprintArchiveBlockEntity;
@@ -132,9 +130,8 @@ public final class BlueprintForgeGameTests {
         return helper.getBlockEntity(ARCHIVE);
     }
 
-    private static ProjectBureauBlockEntity bureauWithShaft(GameTestHelper helper) {
+    private static ProjectBureauBlockEntity placeBureau(GameTestHelper helper) {
         helper.setBlock(BUREAU, BFBlocks.PROJECT_BUREAU.get().defaultBlockState().setValue(ProjectBureauBlock.FACING, Direction.NORTH));
-        helper.setBlock(BUREAU.above(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.DOWN));
         return helper.getBlockEntity(BUREAU);
     }
 
@@ -151,12 +148,18 @@ public final class BlueprintForgeGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = EMPTY)
-    public static void bureauTurnsFromAShaftThroughTheRoof(GameTestHelper helper) {
-        bureauWithShaft(helper);
+    @GameTest(template = EMPTY, timeoutTicks = 40)
+    public static void bureauRedrawsWithoutAMotor(GameTestHelper helper) {
+        ProjectBureauBlockEntity bureau = placeBureau(helper);
+        bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(UUID.randomUUID()), false);
+        bureau.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 12), false);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.OK, "the table starts with no motor");
+        helper.assertTrue(bureau.researchData().get(ProjectBureauBlockEntity.DATA_TOTAL) == 1200, "a step is 1200 game ticks");
+        helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 12, "iron is not spent at the start");
         helper.succeedWhen(() -> {
-            ProjectBureauBlockEntity be = helper.getBlockEntity(BUREAU);
-            helper.assertTrue(be.getSpeed() != 0, "bureau must receive rotation from the shaft above, speed=" + be.getSpeed());
+            helper.assertTrue(bureau.operationProgress() > 0, "the redraw advances with no shaft");
+            helper.succeed();
         });
     }
 
@@ -167,12 +170,11 @@ public final class BlueprintForgeGameTests {
         helper.setBlock(BELT_END, shaft);
         BeltConnectorItem.createBelts(helper.getLevel(), helper.absolutePos(BELT_START), helper.absolutePos(BELT_END));
         helper.setBlock(BELT_START.north(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.SOUTH));
-        ProjectBureauBlockEntity bureau = bureauWithShaft(helper);
+        ProjectBureauBlockEntity bureau = placeBureau(helper);
         UUID uuid = UUID.randomUUID();
         helper.assertTrue(bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
         float[] direction = new float[1];
         helper.runAfterDelay(20, () -> {
-            helper.assertTrue(bureau.getSpeed() != 0, "bureau must be turning");
             BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
             helper.assertTrue(controller != null && controller.getDirectionAwareBeltMovementSpeed() != 0, "belt must be running");
             direction[0] = Math.signum(controller.getDirectionAwareBeltMovementSpeed());
@@ -376,22 +378,17 @@ public final class BlueprintForgeGameTests {
         return stack;
     }
 
-    @GameTest(template = EMPTY, timeoutTicks = 1400)
+    @GameTest(template = EMPTY, timeoutTicks = 1600)
     public static void bureauResearchesMaterialEfficiencyAndKeepsTheOriginal(GameTestHelper helper) {
-        ProjectBureauBlockEntity bureau = bureauWithShaft(helper);
+        ProjectBureauBlockEntity bureau = placeBureau(helper);
         UUID uuid = UUID.randomUUID();
         helper.assertTrue(bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
         helper.assertTrue(bureau.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 12), false).isEmpty(), "iron must fit");
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(bureau.getSpeed() != 0, "bureau must be turning, speed=" + bureau.getSpeed());
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.OK, "the ME step must start");
-            helper.assertTrue(bureau.isPressing(), "the press strikes during research");
-            helper.assertTrue(bureau.calculateStressApplied() == 256.0F, "the step applies the profile stress");
-            int expected = EfficiencyMath.researchTicks(Math.abs(bureau.getSpeed()), 1200);
-            helper.assertTrue(bureau.researchData().get(ProjectBureauBlockEntity.DATA_TOTAL) == expected,
-                    "duration is the mixer formula for 1200, expected " + expected);
-        });
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.OK, "the ME step must start");
+        helper.assertTrue(bureau.isWorking(), "the table is redrawing");
+        helper.assertTrue(bureau.operationTotal() == 1200, "duration is 1200 game ticks");
+        helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 12, "iron stays until the step finishes");
         helper.succeedWhen(() -> {
             BlueprintData data = BlueprintItem.data(bureau.getDocument()).orElse(null);
             helper.assertTrue(data != null && data.materialEfficiency() == 3 && data.timeEfficiency() == 0,
@@ -399,22 +396,19 @@ public final class BlueprintForgeGameTests {
             helper.assertTrue(data.isOriginal() && data.runsRemaining() == -1 && data.instanceId().equals(uuid), "the original stays");
             helper.assertTrue(data.researcherUuid().isPresent(), "the player who started the step is recorded");
             helper.assertTrue(bureau.getMaterials().getStackInSlot(0).isEmpty(), "the twelve iron are spent when the step finishes");
-            helper.assertTrue(bureau.calculateStressApplied() == 0.0F, "an idle bureau adds no stress");
-            helper.assertTrue(!bureau.isPressing(), "the press is raised when the step ends");
+            helper.assertTrue(!bureau.isWorking(), "the table is idle when the step ends");
             helper.succeed();
         });
     }
 
-    @GameTest(template = EMPTY, timeoutTicks = 1400)
+    @GameTest(template = EMPTY, timeoutTicks = 1600)
     public static void bureauResearchesTimeEfficiency(GameTestHelper helper) {
-        ProjectBureauBlockEntity bureau = bureauWithShaft(helper);
+        ProjectBureauBlockEntity bureau = placeBureau(helper);
         UUID uuid = UUID.randomUUID();
         bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
         bureau.getMaterials().insertItem(0, new ItemStack(Items.REDSTONE, 24), false);
-        helper.runAfterDelay(20, () -> {
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(bureau.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.OK, "the TE step must start");
-        });
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(bureau.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.OK, "the TE step must start");
         helper.succeedWhen(() -> {
             BlueprintData data = BlueprintItem.data(bureau.getDocument()).orElseThrow();
             helper.assertTrue(data.timeEfficiency() == 5 && data.materialEfficiency() == 0, "TE advances by 5 and ME stays");
@@ -426,12 +420,11 @@ public final class BlueprintForgeGameTests {
 
     @GameTest(template = EMPTY, timeoutTicks = 80)
     public static void bureauRefusesToResearchACopyOrAShortPayment(GameTestHelper helper) {
-        ProjectBureauBlockEntity bureau = bureauWithShaft(helper);
+        ProjectBureauBlockEntity bureau = placeBureau(helper);
         UUID uuid = UUID.randomUUID();
         bureau.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 5), false);
         bureau.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 12), false);
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(bureau.getSpeed() != 0, "bureau must be turning");
+        helper.runAfterDelay(1, () -> {
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
             helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.COPY_FORBIDDEN, "a copy is not researched");
             helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 12, "a refused step does not take the iron");
@@ -445,48 +438,41 @@ public final class BlueprintForgeGameTests {
     }
 
     @GameTest(template = EMPTY, timeoutTicks = 80)
-    public static void bureauDoesNotResearchPastTheCeilingOrWithoutRotation(GameTestHelper helper) {
-        helper.setBlock(BUREAU, BFBlocks.PROJECT_BUREAU.get().defaultBlockState().setValue(ProjectBureauBlock.FACING, Direction.NORTH));
-        ProjectBureauBlockEntity bureau = helper.getBlockEntity(BUREAU);
+    public static void bureauDoesNotResearchPastTheCeilingAndStartsWithoutAMotor(GameTestHelper helper) {
+        ProjectBureauBlockEntity bureau = placeBureau(helper);
         UUID uuid = UUID.randomUUID();
         ItemStack capped = guildBladeOriginal(uuid);
         BlueprintData data = BlueprintItem.data(capped).orElseThrow();
         capped.set(BFComponents.BLUEPRINT.get(), data.withResearch(30, 40, data.researcherUuid(), data.researcherName()));
         bureau.getBlueprintSlot().insertItem(0, capped, false);
         bureau.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 12), false);
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(bureau.getSpeed() == 0, "this bureau has no shaft");
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.AT_CAP, "ME at 30 does not start");
-            helper.assertTrue(bureau.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.AT_CAP, "TE at 40 does not start");
-            helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 12, "a ceiling does not take materials");
-            ItemStack fresh = guildBladeOriginal(UUID.randomUUID());
-            bureau.getBlueprintSlot().setStackInSlot(0, fresh);
-            helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.NO_ROTATION, "a stopped shaft does not start");
-            helper.assertTrue(BlueprintItem.data(bureau.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays 0");
-            helper.succeed();
-        });
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.AT_CAP, "ME at 30 does not start");
+        helper.assertTrue(bureau.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.AT_CAP, "TE at 40 does not start");
+        helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 12, "a ceiling does not take materials");
+        ItemStack fresh = guildBladeOriginal(UUID.randomUUID());
+        bureau.getBlueprintSlot().setStackInSlot(0, fresh);
+        helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.OK, "a table with no motor starts the step");
+        helper.assertTrue(bureau.researchData().get(ProjectBureauBlockEntity.DATA_TOTAL) == 1200, "the step is 1200 game ticks");
+        helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 12, "iron is not spent at the start");
+        helper.assertTrue(BlueprintItem.data(bureau.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays 0 until the step finishes");
+        helper.succeed();
     }
 
     @GameTest(template = EMPTY, timeoutTicks = 400)
-    public static void bureauPrintsACopyForMixerTimeTimesRuns(GameTestHelper helper) {
-        ProjectBureauBlockEntity bureau = bureauWithShaft(helper);
+    public static void bureauPrintsACopyForDatapackTicksTimesRuns(GameTestHelper helper) {
+        ProjectBureauBlockEntity bureau = placeBureau(helper);
         UUID uuid = UUID.randomUUID();
         bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
         bureau.getMaterials().insertItem(0, new ItemStack(Items.PAPER, 8), false);
         bureau.getMaterials().insertItem(1, new ItemStack(Items.INK_SAC, 2), false);
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(bureau.getSpeed() != 0, "bureau must be turning");
-            BlueprintDefinition definition = BlueprintRegistry.get(GUILD_BLADE).orElseThrow();
-            BlueprintDefinition.CopyRules rules = definition.copy().orElseThrow();
-            helper.assertTrue(bureau.setCopyRuns(1, ProjectBureauBlockEntity.copyChecksum(rules, 1)), "one run must be quoted");
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(bureau.tryCopy(player) == ArchiveRefusal.OK, "printing must start");
-            int expected = RemakeMath.processingTicks(Math.abs(bureau.getSpeed()), 80) * 1;
-            helper.assertTrue(bureau.pressTotal() == expected, "print time is one run of the mixer formula, expected " + expected + " got " + bureau.pressTotal());
-            helper.assertTrue(bureau.isPressing(), "the press strikes while a copy is printing");
-            helper.assertTrue(bureau.calculateStressApplied() == 256.0F, "printing applies stress");
-        });
+        BlueprintDefinition definition = BlueprintRegistry.get(GUILD_BLADE).orElseThrow();
+        BlueprintDefinition.CopyRules rules = definition.copy().orElseThrow();
+        helper.assertTrue(bureau.setCopyRuns(1, ProjectBureauBlockEntity.copyChecksum(rules, 1)), "one run must be quoted");
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(bureau.tryCopy(player) == ArchiveRefusal.OK, "printing must start");
+        helper.assertTrue(bureau.operationTotal() == 80, "one run lasts 80 game ticks, got " + bureau.operationTotal());
+        helper.assertTrue(bureau.isWorking(), "the table is printing");
         helper.succeedWhen(() -> {
             ItemStack printed = ItemStack.EMPTY;
             for (int slot = 0; slot < bureau.getOutput().getSlots(); slot++) {
@@ -501,7 +487,7 @@ public final class BlueprintForgeGameTests {
             helper.assertTrue(!copy.instanceId().equals(uuid), "the copy has its own UUID");
             helper.assertTrue(BlueprintItem.data(bureau.getDocument()).map(d -> d.isOriginal() && d.instanceId().equals(uuid)).orElse(false),
                     "the original stays");
-            helper.assertTrue(!bureau.isPressing(), "the press rises when printing ends");
+            helper.assertTrue(!bureau.isWorking(), "the table is idle when printing ends");
             helper.succeed();
         });
     }

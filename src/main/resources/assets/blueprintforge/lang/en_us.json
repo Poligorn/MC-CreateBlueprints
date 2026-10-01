@@ -25,6 +25,7 @@
   "gui.blueprintforge.archive.speed": "Network speed: %s RPM",
   "gui.blueprintforge.archive.storage": "Stores one blueprint. Research and printing are done in the Project Bureau.",
   "gui.blueprintforge.archive.no_rotation": "No rotation: the bureau is idle",
+  "gui.blueprintforge.bureau.table": "Table: redraw and copy",
   "gui.blueprintforge.archive.empty": "Place an original or a copy",
   "gui.blueprintforge.archive.unknown_item": "unknown item",
   "gui.blueprintforge.archive.research_me": "Materials (ME) %s/%s %s",

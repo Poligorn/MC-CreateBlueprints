@@ -4,9 +4,9 @@ import java.util.OptionalInt;
 
 /**
  * Research step, copy price, and production ME/TE. Ancient rolls stay out of this class.
- * Research and copy duration use the Create mixer countdown: the datapack field is in Create
- * {@code processingTime} units, and TE does not enter that formula. Production time is different:
- * TE scales the recipe's own {@code processingTime} before Create applies shaft speed.
+ * The bureau table counts {@code time_per_step_ticks} and {@code copy_time_per_run_ticks} as game ticks
+ * and does not call {@link #researchTicks}. That method still matches Create's mixer. Production time
+ * is different: TE scales the recipe's own {@code processingTime} before Create applies shaft speed.
  */
 public final class EfficiencyMath {
     private EfficiencyMath() {
@@ -23,7 +23,7 @@ public final class EfficiencyMath {
         return OptionalInt.of(Math.min(max, current + step));
     }
 
-    /** Game ticks of a research step at {@code absoluteSpeed} RPM. Zero when the shaft is stopped. */
+    /** Mixer ticks for a datapack time at {@code absoluteSpeed} RPM. The bureau table does not use this. */
     public static int researchTicks(float absoluteSpeed, int timePerStepTicks) {
         return RemakeMath.processingTicks(absoluteSpeed, timePerStepTicks);
     }

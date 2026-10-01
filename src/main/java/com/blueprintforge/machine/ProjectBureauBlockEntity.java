@@ -22,14 +22,12 @@ import com.blueprintforge.logic.ArchiveRefusal;
 import com.blueprintforge.logic.AssemblyMatching;
 import com.blueprintforge.logic.CopyRunWarning;
 import com.blueprintforge.logic.EfficiencyMath;
-import com.blueprintforge.logic.RemakeMath;
 import com.blueprintforge.logic.ResearchAxis;
 import com.blueprintforge.logic.ResearchPayment;
 import com.blueprintforge.logic.ResearchRefusal;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.registry.BFItems;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -45,15 +43,17 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 /**
- * Kinetic station. Research, copy printing and fragment assembly run here while the shaft turns.
- * Stress is applied only for the duration of an operation. The press strikes during research and copying.
+ * Drafting table. Research redraws the blueprint, and copying prints another document, both on a timer.
+ * No shaft and no network stress: one game tick advances the datapack duration by one.
  * Forged items are not made here: they come from a Create recipe with a blueprint slot.
  */
-public class ProjectBureauBlockEntity extends KineticBlockEntity implements MenuProvider, DocumentHolder {
+public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvider, DocumentHolder {
     private static final String BLUEPRINT_TAG = "Blueprint";
     /** Sentinel: the replacement is already queued, so a second tick must not spend another run. */
     public static final int MATERIAL_SLOTS = 16;
@@ -97,16 +97,13 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
     private ResearchAxis researchAxis;
     private int researchProgress;
     private int researchTotal;
-    private int researchStress;
     private UUID researchInstance;
     private UUID researchPlayer;
     private String researchPlayerName;
-    private boolean stressDirty;
     private boolean copying;
     private boolean assembling;
     private int jobProgress;
     private int jobTotal;
-    private int jobStress;
     private UUID jobInstance;
     private UUID copyPlayer;
     private String copyPlayerName;
@@ -115,10 +112,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
     private ResourceLocation assemblyId;
     private UUID heldInstance;
     private boolean occupancyReady;
-    private boolean clientPressing;
-    private int clientPressProgress;
-    private int clientPressTotal;
-    private boolean pressSync;
 
     public ProjectBureauBlockEntity(BlockPos pos, BlockState state) {
         super(BFBlocks.PROJECT_BUREAU_ENTITY.get(), pos, state);
@@ -154,28 +147,22 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
 
     /**
      * Starts one ME or TE step. Materials stay in the slots until the step finishes. A copy is refused unless the
-     * profile allows it. At the ceiling, with no rotation, or without the items, nothing is taken.
+     * profile allows it. At the ceiling or without the items, nothing is taken. The table does not need a motor:
+     * the step lasts {@code time_per_step_ticks} game ticks.
      */
     public ResearchRefusal tryStart(ResearchAxis axis, Player player) {
         ResearchRefusal refusal = refusal(axis);
         if (refusal != ResearchRefusal.OK || level == null || level.isClientSide) {
-            return refusal == ResearchRefusal.OK ? ResearchRefusal.NO_ROTATION : refusal;
+            return refusal != ResearchRefusal.OK ? refusal : ResearchRefusal.BUSY;
         }
         ResearchProfile profile = profile().orElseThrow();
-        int ticks = EfficiencyMath.researchTicks(Math.abs(getSpeed()), profile.timePerStepTicks());
-        if (ticks <= 0) {
-            return ResearchRefusal.NO_ROTATION;
-        }
         researchAxis = axis;
         researchProgress = 0;
-        researchTotal = ticks;
-        researchStress = profile.stressPerStep();
+        researchTotal = Math.max(1, profile.timePerStepTicks());
         researchInstance = BlueprintItem.data(getDocument()).orElseThrow().instanceId();
         researchPlayer = player.getUUID();
         researchPlayerName = player.getName().getString();
-        pushStress();
         setChanged();
-        sendData();
         return ResearchRefusal.OK;
     }
 
@@ -215,9 +202,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         if (!ResearchPayment.covers(cost, ResearchPayment.tally(materialStacks()))) {
             return ResearchRefusal.MISSING_COST;
         }
-        if (getSpeed() == 0 || EfficiencyMath.researchTicks(Math.abs(getSpeed()), profile.timePerStepTicks()) <= 0) {
-            return ResearchRefusal.NO_ROTATION;
-        }
         return ResearchRefusal.OK;
     }
 
@@ -239,9 +223,11 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         };
     }
 
-    @Override
-    public void tick() {
-        super.tick();
+    public static void serverTick(Level level, BlockPos pos, BlockState state, ProjectBureauBlockEntity bureau) {
+        bureau.tickServer();
+    }
+
+    private void tickServer() {
         if (level == null || level.isClientSide) {
             return;
         }
@@ -249,20 +235,12 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
             occupancyReady = true;
             syncOccupancy();
         }
-        if (stressDirty) {
-            pushStress();
-            stressDirty = false;
-        }
         tickJob();
-        syncPress();
         if (researchAxis == null) {
             return;
         }
         if (refusalWhileRunning() != ResearchRefusal.OK) {
             cancelResearch();
-            return;
-        }
-        if (getSpeed() == 0) {
             return;
         }
         researchProgress++;
@@ -272,13 +250,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         if (researchProgress >= researchTotal) {
             finishResearch();
         }
-    }
-
-    @Override
-    public float calculateStressApplied() {
-        float impact = researchAxis != null ? researchStress : (copying || assembling ? jobStress : 0.0F);
-        this.lastStressApplied = impact;
-        return impact;
     }
 
     private void onDocumentChanged() {
@@ -348,26 +319,18 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         researchAxis = null;
         researchProgress = 0;
         researchTotal = 0;
-        researchStress = 0;
         ItemStack updated = getDocument().copy();
         updated.set(BFComponents.BLUEPRINT.get(), data.withResearch(me, te,
                 Optional.ofNullable(researchPlayer), Optional.ofNullable(researchPlayerName)));
         blueprintSlot.setStackInSlot(0, updated);
-        pushStress();
         setChanged();
-        sendData();
     }
 
     private void cancelResearch() {
         researchAxis = null;
         researchProgress = 0;
         researchTotal = 0;
-        researchStress = 0;
         researchInstance = null;
-        if (level != null && !level.isClientSide) {
-            pushStress();
-            sendData();
-        }
         setChanged();
     }
 
@@ -392,13 +355,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
             }
         }
         return true;
-    }
-
-    private void pushStress() {
-        float impact = calculateStressApplied();
-        if (hasNetwork()) {
-            getOrCreateNetwork().updateStressFor(this, impact);
-        }
     }
 
     private Optional<ResearchProfile> profile() {
@@ -438,21 +394,20 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
             case DATA_AXIS -> researchAxis == null ? 0 : researchAxis.ordinal() + 1;
             case DATA_ME_REFUSAL -> refusal(ResearchAxis.MATERIAL).ordinal();
             case DATA_TE_REFUSAL -> refusal(ResearchAxis.TIME).ordinal();
-            case DATA_STRESS -> researchAxis == null ? profile().map(ResearchProfile::stressPerStep).orElse(0) : researchStress;
+            case DATA_STRESS -> 0;
             case DATA_COPY_RUNS -> selectedRuns;
             case DATA_COPY_MAX -> copyRules(data).map(BlueprintDefinition.CopyRules::maxRuns).orElse(1);
             case DATA_COPY_REFUSAL -> getDocument().isEmpty() ? assemblyRefusal().ordinal() : copyRefusal().ordinal();
             case DATA_JOB -> copying ? 2 : assembling ? 3 : researchAxis != null ? 1 : 0;
-            case DATA_PRESSING -> isPressing() ? 1 : 0;
-            case DATA_PRESS_PROGRESS -> pressProgress();
-            case DATA_PRESS_TOTAL -> pressTotal();
+            case DATA_PRESSING -> isWorking() ? 1 : 0;
+            case DATA_PRESS_PROGRESS -> operationProgress();
+            case DATA_PRESS_TOTAL -> operationTotal();
             default -> 0;
         };
     }
 
-    @Override
-    public void destroy() {
-        super.destroy();
+    /** Break drops the document, leftover materials and anything already in the output. A partial copy is not created. */
+    public void dropContents() {
         cancelResearch();
         cancelJob(true);
         releaseHeld();
@@ -485,8 +440,7 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         }
     }
 
-    @Override
-    protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
+    private void writeContents(CompoundTag compound, HolderLookup.Provider registries) {
         compound.put(BLUEPRINT_TAG, blueprintSlot.serializeNBT(registries));
         compound.put(MATERIALS_TAG, materials.serializeNBT(registries));
         compound.put("Output", output.serializeNBT(registries));
@@ -495,7 +449,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         compound.putBoolean("Assembling", assembling);
         compound.putInt("JobProgress", jobProgress);
         compound.putInt("JobTotal", jobTotal);
-        compound.putInt("JobStress", jobStress);
         if (jobInstance != null) {
             compound.putUUID("JobInstance", jobInstance);
         }
@@ -507,14 +460,10 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
             reservedTag.add(stack.save(registries));
         }
         compound.put("Reserved", reservedTag);
-        compound.putBoolean("Pressing", isPressing());
-        compound.putInt("PressProgress", pressProgress());
-        compound.putInt("PressTotal", pressTotal());
         if (researchAxis != null) {
             compound.putString(RESEARCH_AXIS_TAG, researchAxis.name());
             compound.putInt("ResearchProgress", researchProgress);
             compound.putInt("ResearchTotal", researchTotal);
-            compound.putInt("ResearchStress", researchStress);
             if (researchInstance != null) {
                 compound.putUUID("ResearchInstance", researchInstance);
             }
@@ -525,33 +474,36 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
                 compound.putString("ResearchPlayerName", researchPlayerName);
             }
         }
-        super.write(compound, registries, clientPacket);
     }
 
     @Override
-    protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        writeContents(tag, registries);
+    }
+
+    @Override
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        readContents(tag, registries);
+    }
+
+    private void readContents(CompoundTag compound, HolderLookup.Provider registries) {
         blueprintSlot.deserializeNBT(registries, compound.getCompound(BLUEPRINT_TAG));
         materials.deserializeNBT(registries, compound.getCompound(MATERIALS_TAG));
         if (compound.contains("Output")) {
             output.deserializeNBT(registries, compound.getCompound("Output"));
         }
         selectedRuns = Math.max(1, compound.getInt("SelectedRuns"));
-        clientPressing = compound.getBoolean("Pressing");
-        clientPressProgress = compound.getInt("PressProgress");
-        clientPressTotal = compound.getInt("PressTotal");
         copying = compound.getBoolean("Copying");
         assembling = compound.getBoolean("Assembling");
         jobProgress = compound.getInt("JobProgress");
         jobTotal = compound.getInt("JobTotal");
-        jobStress = compound.getInt("JobStress");
         jobInstance = compound.hasUUID("JobInstance") ? compound.getUUID("JobInstance") : null;
         assemblyId = compound.contains("Assembly") ? ResourceLocation.tryParse(compound.getString("Assembly")) : null;
         reserved.clear();
         for (net.minecraft.nbt.Tag entry : compound.getList("Reserved", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
             ItemStack.parse(registries, entry).ifPresent(reserved::add);
-        }
-        if (copying || assembling) {
-            stressDirty = true;
         }
         researchAxis = null;
         if (compound.contains(RESEARCH_AXIS_TAG)) {
@@ -563,12 +515,9 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         }
         researchProgress = compound.getInt("ResearchProgress");
         researchTotal = compound.getInt("ResearchTotal");
-        researchStress = compound.getInt("ResearchStress");
         researchInstance = compound.hasUUID("ResearchInstance") ? compound.getUUID("ResearchInstance") : null;
         researchPlayer = compound.hasUUID("ResearchPlayer") ? compound.getUUID("ResearchPlayer") : null;
         researchPlayerName = compound.contains("ResearchPlayerName") ? compound.getString("ResearchPlayerName") : null;
-        stressDirty = researchAxis != null;
-        super.read(compound, registries, clientPacket);
     }
 
     @Override
@@ -637,32 +586,23 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         return researchAxis != null || copying || assembling;
     }
 
-    /** The press strikes only while a research step or a copy is being printed. Assembly leaves it raised. */
-    public boolean isPressing() {
-        if (level != null && level.isClientSide) {
-            return clientPressing;
-        }
-        return researchAxis != null || copying;
+    /** True while a research step or a copy is in progress. Assembly is busy too, but it is not a redraw. */
+    public boolean isWorking() {
+        return researchAxis != null || copying || assembling;
     }
 
-    public int pressProgress() {
-        if (level != null && level.isClientSide) {
-            return clientPressProgress;
-        }
+    public int operationProgress() {
         if (researchAxis != null) {
             return researchProgress;
         }
-        return copying ? jobProgress : 0;
+        return copying || assembling ? jobProgress : 0;
     }
 
-    public int pressTotal() {
-        if (level != null && level.isClientSide) {
-            return clientPressTotal;
-        }
+    public int operationTotal() {
         if (researchAxis != null) {
             return researchTotal;
         }
-        return copying ? jobTotal : 0;
+        return copying || assembling ? jobTotal : 0;
     }
 
     public int selectedRuns() {
@@ -703,30 +643,24 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
     public ArchiveRefusal tryCopy(Player player) {
         ArchiveRefusal refusal = copyRefusal();
         if (refusal != ArchiveRefusal.OK || level == null || level.isClientSide) {
-            return refusal == ArchiveRefusal.OK ? ArchiveRefusal.NO_ROTATION : refusal;
+            return refusal != ArchiveRefusal.OK ? refusal : ArchiveRefusal.BUSY;
         }
         BlueprintData data = BlueprintItem.data(getDocument()).orElseThrow();
         BlueprintDefinition.CopyRules rules = copyRules(data).orElseThrow();
         ResearchProfile profile = profile().orElseThrow();
         int runs = EfficiencyMath.clampRuns(selectedRuns, rules.maxRuns());
-        int perRun = RemakeMath.processingTicks(Math.abs(getSpeed()), profile.copyTimePerRunTicks());
-        if (perRun <= 0) {
-            return ArchiveRefusal.NO_ROTATION;
-        }
+        int perRun = Math.max(1, profile.copyTimePerRunTicks());
         if (!reserve(scaledCost(rules, runs))) {
             return ArchiveRefusal.MISSING_COST;
         }
         copying = true;
         jobProgress = 0;
         jobTotal = perRun * runs;
-        jobStress = profile.copyStress();
         jobInstance = data.instanceId();
         copyPlayer = player.getUUID();
         copyPlayerName = player.getName().getString();
         selectedRuns = runs;
-        pushStress();
         setChanged();
-        sendData();
         return ArchiveRefusal.OK;
     }
 
@@ -762,16 +696,13 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         if (!ResearchPayment.covers(cost, ResearchPayment.tally(materialStacks()))) {
             return ArchiveRefusal.MISSING_COST;
         }
-        if (getSpeed() == 0 || RemakeMath.processingTicks(Math.abs(getSpeed()), profile.copyTimePerRunTicks()) <= 0) {
-            return ArchiveRefusal.NO_ROTATION;
-        }
         return ArchiveRefusal.OK;
     }
 
     public ArchiveRefusal tryAssemble(Player player) {
         ArchiveRefusal refusal = assemblyRefusal();
-        if (refusal != ArchiveRefusal.OK || !(level instanceof ServerLevel server)) {
-            return refusal == ArchiveRefusal.OK ? ArchiveRefusal.NO_ROTATION : refusal;
+        if (refusal != ArchiveRefusal.OK || !(level instanceof ServerLevel)) {
+            return refusal != ArchiveRefusal.OK ? refusal : ArchiveRefusal.BUSY;
         }
         Map.Entry<ResourceLocation, AssemblyRecipe> match = assemblyMatch().orElseThrow();
         if (!reserveAssembly(match.getValue())) {
@@ -780,15 +711,8 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         assembling = true;
         assemblyId = match.getKey();
         jobProgress = 0;
-        jobTotal = RemakeMath.processingTicks(Math.abs(getSpeed()), match.getValue().processTimeTicks());
-        jobStress = match.getValue().stress();
-        if (jobTotal <= 0) {
-            cancelJob(true);
-            return ArchiveRefusal.NO_ROTATION;
-        }
-        pushStress();
+        jobTotal = Math.max(1, match.getValue().processTimeTicks());
         setChanged();
-        sendData();
         return ArchiveRefusal.OK;
     }
 
@@ -815,9 +739,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         if (ResearchPayment.hasFluid(match.getValue().extraIngredients())) {
             return ArchiveRefusal.FLUID_COST;
         }
-        if (getSpeed() == 0 || RemakeMath.processingTicks(Math.abs(getSpeed()), match.getValue().processTimeTicks()) <= 0) {
-            return ArchiveRefusal.NO_ROTATION;
-        }
         return ArchiveRefusal.OK;
     }
 
@@ -833,9 +754,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
             }
         } else if (!getDocument().isEmpty()) {
             cancelJob(true);
-            return;
-        }
-        if (getSpeed() == 0) {
             return;
         }
         jobProgress++;
@@ -863,11 +781,8 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
                 Optional.ofNullable(copyPlayer), Optional.ofNullable(copyPlayerName)));
         reserved.clear();
         copying = false;
-        jobStress = 0;
         output.setStackInSlot(0, copy);
-        pushStress();
         setChanged();
-        sendData();
     }
 
     private void finishAssembly() {
@@ -880,7 +795,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         ItemStack original = BlueprintItem.createInstance(recipe.outputBlueprint(), definition, UUID.randomUUID());
         reserved.clear();
         assembling = false;
-        jobStress = 0;
         output.setStackInSlot(0, original);
         if (recipe.oneTimePerChunk() && level instanceof ServerLevel server) {
             AssemblyClaims.get(server).claim(AssemblyClaims.key(assemblyId, server.dimension(), worldPosition.getX() >> 4, worldPosition.getZ() >> 4));
@@ -892,9 +806,7 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
                     Component.translatable("message.blueprintforge.assembly", name, tier), false);
         }
         assemblyId = null;
-        pushStress();
         setChanged();
-        sendData();
     }
 
     private void cancelJob(boolean refund) {
@@ -902,17 +814,12 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
         assembling = false;
         jobProgress = 0;
         jobTotal = 0;
-        jobStress = 0;
         jobInstance = null;
         assemblyId = null;
         if (refund) {
             refundReserved();
         } else {
             reserved.clear();
-        }
-        if (level != null && !level.isClientSide) {
-            pushStress();
-            sendData();
         }
         setChanged();
     }
@@ -1013,14 +920,6 @@ public class ProjectBureauBlockEntity extends KineticBlockEntity implements Menu
     private Optional<Map.Entry<ResourceLocation, AssemblyRecipe>> assemblyMatch() {
         Optional<ResourceLocation> id = AssemblyMatching.match(AssemblyRegistry.all(), materialStacks());
         return id.flatMap(key -> AssemblyRegistry.get(key).map(recipe -> Map.entry(key, recipe)));
-    }
-
-    private void syncPress() {
-        boolean pressing = isPressing();
-        if (pressing || pressSync) {
-            sendData();
-        }
-        pressSync = pressing;
     }
 
     private void syncOccupancy() {

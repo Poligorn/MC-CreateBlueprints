@@ -3,10 +3,9 @@ package com.blueprintforge.logic;
 import net.minecraft.util.Mth;
 
 /**
- * How many game ticks one Create {@code processingTime} budget takes on a shaft. Same formula as
- * {@code MechanicalMixerBlockEntity} in Create 6.0.10. Research uses {@code time_per_step_ticks}.
- * One printed copy run uses {@code copy_time_per_run_ticks}; the bureau multiplies that by the run count.
- * The {@code 512 / speed} ratio is clamped to at least 1 so {@code log2} stays defined above 512 RPM.
+ * Mixer countdown from Create 6.0.10 ({@code MechanicalMixerBlockEntity}). The Project Bureau is a
+ * table and does not call this: a research step, a copy run and an assembly last the datapack tick
+ * counts directly. The {@code 512 / speed} ratio is clamped to at least 1 so {@code log2} stays defined.
  */
 public final class RemakeMath {
     private RemakeMath() {

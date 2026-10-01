@@ -8,7 +8,6 @@ import com.blueprintforge.data.BlueprintRegistry;
 import com.blueprintforge.data.ResearchProfile;
 import com.blueprintforge.data.ResearchRegistry;
 import com.blueprintforge.item.BlueprintItem;
-import com.blueprintforge.logic.ArchivePress;
 import com.blueprintforge.logic.ArchiveRefusal;
 import com.blueprintforge.logic.EfficiencyMath;
 import com.blueprintforge.logic.ResearchAxis;
@@ -28,8 +27,8 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Bureau screen: network speed, the next ME and TE step, the copy slider and assembly.
- * The press stroke on the right is the same one the block renderer draws.
+ * Bureau screen: the next ME and TE step, the copy slider and assembly.
+ * The table needs no engine; the bar is the redraw or the print.
  */
 public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMenu> {
     private static final int METAL = 0xFF3E4046;
@@ -131,8 +130,8 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         graphics.fill(dx - 2, dy - 2, dx + 18, dy + 18, PAPER);
         graphics.fill(dx, dy, dx + 16, dy + 16, SLOT);
 
-        int progress = menu.datum(ProjectBureauBlockEntity.DATA_PROGRESS);
-        int total = menu.datum(ProjectBureauBlockEntity.DATA_TOTAL);
+        int progress = menu.datum(ProjectBureauBlockEntity.DATA_PRESS_PROGRESS);
+        int total = menu.datum(ProjectBureauBlockEntity.DATA_PRESS_TOTAL);
         if (total > 0) {
             int barX = x + 8;
             int barY = y + 122;
@@ -141,21 +140,6 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
             int filled = Math.min(barWidth, progress * barWidth / total);
             graphics.fill(barX, barY, barX + filled, barY + 6, BAR_FILL);
         }
-        drawPress(graphics, x, y, partialTick);
-    }
-
-    /** The same stroke the block renderer uses, so the operator sees the press with the menu open. */
-    private void drawPress(GuiGraphics graphics, int x, int y, float partialTick) {
-        boolean working = menu.datum(ProjectBureauBlockEntity.DATA_PRESSING) == 1;
-        float down = ArchivePress.headDown(working, menu.networkSpeed(),
-                menu.datum(ProjectBureauBlockEntity.DATA_PRESS_PROGRESS),
-                menu.datum(ProjectBureauBlockEntity.DATA_PRESS_TOTAL), partialTick);
-        int trackTop = y + 20;
-        int travel = 28;
-        graphics.fill(x + 154, trackTop, x + 158, trackTop + travel, 0xFF3A342C);
-        int head = trackTop + Math.round(down * (travel - 6));
-        graphics.fill(x + 146, head, x + 166, head + 5, 0xFFC4A15A);
-        graphics.fill(x + 152, trackTop, x + 156, head + 2, 0xFF8A7340);
     }
 
     @Override
@@ -163,11 +147,7 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         graphics.drawString(font, title, titleLabelX, titleLabelY, TEXT, false);
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, TEXT, false);
 
-        float speed = Math.abs(menu.networkSpeed());
-        Component status = speed > 0
-                ? Component.translatable("gui.blueprintforge.archive.speed", Math.round(speed))
-                : Component.translatable("gui.blueprintforge.archive.no_rotation");
-        graphics.drawString(font, status, 8, 18, speed > 0 ? TEXT_OK : TEXT_WARN, false);
+        graphics.drawString(font, Component.translatable("gui.blueprintforge.bureau.table"), 8, 18, TEXT, false);
 
         ItemStack document = menu.document();
         Component documentLine = document.isEmpty()

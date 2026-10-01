@@ -4,7 +4,6 @@ import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.item.BlueprintItem;
 import com.blueprintforge.registry.BFCreativeTabs;
 import com.blueprintforge.registry.BFItems;
-import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFMenus;
 
 import net.minecraft.client.Minecraft;
@@ -14,7 +13,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 @Mod(value = BlueprintForge.MOD_ID, dist = Dist.CLIENT)
@@ -25,16 +23,11 @@ public final class BlueprintForgeClient {
     public BlueprintForgeClient(IEventBus modBus) {
         modBus.addListener(BlueprintForgeClient::clientSetup);
         modBus.addListener(BlueprintForgeClient::registerScreens);
-        modBus.addListener(BlueprintForgeClient::registerRenderers);
     }
 
     private static void clientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> ItemProperties.register(BFItems.BLUEPRINT.get(), BlueprintForge.id(CLASS_PROPERTY),
                 (stack, level, entity, seed) -> BlueprintItem.data(stack).map(data -> data.clazz().ordinal() + 1.0F).orElse(0.0F)));
-    }
-
-    private static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(BFBlocks.PROJECT_BUREAU_ENTITY.get(), ArchivePressRenderer::new);
     }
 
     private static void registerScreens(RegisterMenuScreensEvent event) {

@@ -73,11 +73,6 @@ public class ProjectBureauMenu extends AbstractContainerMenu {
         }
     }
 
-    /** Network speed in RPM as the client block entity sees it; zero when the archive is not turning. */
-    public float networkSpeed() {
-        return bureau == null ? 0 : bureau.getSpeed();
-    }
-
     public int datum(int index) {
         return data.get(index);
     }
