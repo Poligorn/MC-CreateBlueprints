@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * One {@code blueprint_assembly} file. Fragments plus extra ingredients and machine time make one original.
- * An unsupported {@code machine} is rejected by the loader; it is not silently retargeted at the Archive.
+ * An unsupported {@code machine} is rejected by the loader; it is not silently retargeted at the bureau.
  */
 public record AssemblyRecipe(
         ResourceLocation outputBlueprint,
@@ -23,7 +23,7 @@ public record AssemblyRecipe(
         boolean announceToServer,
         int stress
 ) {
-    public static final ResourceLocation ARCHIVE = ResourceLocation.fromNamespaceAndPath("blueprintforge", "blueprint_archive");
+    public static final ResourceLocation PROJECT_BUREAU = ResourceLocation.fromNamespaceAndPath("blueprintforge", "project_bureau");
 
     public static final Codec<AssemblyRecipe> CODEC = RecordCodecBuilder.<AssemblyRecipe>create(i -> i.group(
             ResourceLocation.CODEC.fieldOf("output_blueprint").forGetter(AssemblyRecipe::outputBlueprint),
@@ -35,7 +35,7 @@ public record AssemblyRecipe(
             Codec.BOOL.optionalFieldOf("one_time_per_chunk", false).forGetter(AssemblyRecipe::oneTimePerChunk),
             Codec.BOOL.optionalFieldOf("announce_to_server", false).forGetter(AssemblyRecipe::announceToServer),
             Codec.intRange(0, 1_000_000).optionalFieldOf("stress", 0).forGetter(AssemblyRecipe::stress)
-    ).apply(i, AssemblyRecipe::new)).validate(recipe -> recipe.machine.equals(ARCHIVE)
+    ).apply(i, AssemblyRecipe::new)).validate(recipe -> recipe.machine.equals(PROJECT_BUREAU)
             ? DataResult.success(recipe)
             : DataResult.error(() -> "unsupported assembly machine " + recipe.machine));
 }

@@ -23,7 +23,7 @@ import net.minecraft.world.item.ItemStack;
 /** Optional. Loaded by EMI's annotation scan only. The mod does not reference this class. */
 @EmiEntrypoint
 public class BlueprintForgeEmiPlugin implements EmiPlugin {
-    private static final EmiStack ARCHIVE = EmiStack.of(BFItems.BLUEPRINT_ARCHIVE.get());
+    private static final EmiStack BUREAU = EmiStack.of(BFItems.PROJECT_BUREAU.get());
     public static final EmiRecipeCategory RESEARCH = category("research", "gui.blueprintforge.viewer.research");
     public static final EmiRecipeCategory COPY = category("copy", "gui.blueprintforge.viewer.copy");
     public static final EmiRecipeCategory TIER = category("tier", "gui.blueprintforge.viewer.tiers");
@@ -33,9 +33,9 @@ public class BlueprintForgeEmiPlugin implements EmiPlugin {
         registry.addCategory(RESEARCH);
         registry.addCategory(COPY);
         registry.addCategory(TIER);
-        registry.addWorkstation(RESEARCH, ARCHIVE);
-        registry.addWorkstation(COPY, ARCHIVE);
-        registry.addWorkstation(TIER, ARCHIVE);
+        registry.addWorkstation(RESEARCH, BUREAU);
+        registry.addWorkstation(COPY, BUREAU);
+        registry.addWorkstation(TIER, BUREAU);
         for (ViewerCatalog.ResearchStep step : ViewerCatalog.researchSteps()) {
             registry.addRecipe(new ResearchEmiRecipe(step));
         }
@@ -61,7 +61,7 @@ public class BlueprintForgeEmiPlugin implements EmiPlugin {
     }
 
     private static EmiRecipeCategory category(String path, String titleKey) {
-        return new EmiRecipeCategory(ResourceLocation.fromNamespaceAndPath(BlueprintForge.MOD_ID, path), ARCHIVE) {
+        return new EmiRecipeCategory(ResourceLocation.fromNamespaceAndPath(BlueprintForge.MOD_ID, path), BUREAU) {
             @Override
             public Component getName() {
                 return Component.translatable(titleKey);

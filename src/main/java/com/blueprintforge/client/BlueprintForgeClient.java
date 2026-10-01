@@ -4,7 +4,6 @@ import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.item.BlueprintItem;
 import com.blueprintforge.registry.BFCreativeTabs;
 import com.blueprintforge.registry.BFItems;
-import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFMenus;
 
 import net.minecraft.client.Minecraft;
@@ -14,7 +13,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 @Mod(value = BlueprintForge.MOD_ID, dist = Dist.CLIENT)
@@ -25,7 +23,6 @@ public final class BlueprintForgeClient {
     public BlueprintForgeClient(IEventBus modBus) {
         modBus.addListener(BlueprintForgeClient::clientSetup);
         modBus.addListener(BlueprintForgeClient::registerScreens);
-        modBus.addListener(BlueprintForgeClient::registerRenderers);
     }
 
     private static void clientSetup(FMLClientSetupEvent event) {
@@ -33,12 +30,9 @@ public final class BlueprintForgeClient {
                 (stack, level, entity, seed) -> BlueprintItem.data(stack).map(data -> data.clazz().ordinal() + 1.0F).orElse(0.0F)));
     }
 
-    private static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(BFBlocks.BLUEPRINT_ARCHIVE_ENTITY.get(), ArchivePressRenderer::new);
-    }
-
     private static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(BFMenus.BLUEPRINT_ARCHIVE.get(), BlueprintArchiveScreen::new);
+        event.register(BFMenus.PROJECT_BUREAU.get(), ProjectBureauScreen::new);
     }
 
     /** The creative tab lists loaded definitions, so it is rebuilt whenever the server sends new ones. */

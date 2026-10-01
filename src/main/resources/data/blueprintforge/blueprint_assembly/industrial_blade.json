@@ -2,7 +2,7 @@
   "output_blueprint": "blueprintforge:industrial_blade",
   "fragments_required": 12,
   "fragment_item": "blueprintforge:industrial_blade_fragment",
-  "machine": "blueprintforge:blueprint_archive",
+  "machine": "blueprintforge:project_bureau",
   "process_time_ticks": 200,
   "extra_ingredients": [
     { "item": "minecraft:iron_block", "count": 4 },

@@ -15,6 +15,7 @@ public final class BFItems {
             () -> new BlueprintItem(new Item.Properties().stacksTo(1)));
 
     public static final DeferredItem<BlockItem> BLUEPRINT_ARCHIVE = ITEMS.registerSimpleBlockItem(BFBlocks.BLUEPRINT_ARCHIVE);
+    public static final DeferredItem<BlockItem> PROJECT_BUREAU = ITEMS.registerSimpleBlockItem(BFBlocks.PROJECT_BUREAU);
 
     private BFItems() {
     }

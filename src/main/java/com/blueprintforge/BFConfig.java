@@ -26,7 +26,12 @@ public final class BFConfig {
 
         builder.push("enchanting");
         ENCHANTING_MODE = builder
-                .comment("off | restricted | full. Tags enchanting_allowed and enchanting_denied apply only to restricted")
+                .comment("""
+                        off | restricted | full | scaled. Default is restricted.
+                        Tags enchanting_allowed and enchanting_denied apply only to restricted.
+                        scaled caps the enchantment's own level (Sharpness IV is 4) on the table and the anvil by forged tier:
+                        no tier and T0 — none; T1 — 1; T2 — 1; T3 — 2; T4 — 3; T5 — 4.
+                        A vanilla item cannot be enchanted in scaled.""")
                 .define("mode", "restricted", value -> value instanceof String s && EnchantPolicy.Mode.parse(s).isPresent());
         DISABLE_BOOKS = builder
                 .comment("With mode = \"full\" books are disabled in any case")
