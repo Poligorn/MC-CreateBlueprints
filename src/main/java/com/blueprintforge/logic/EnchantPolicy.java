@@ -2,17 +2,23 @@ package com.blueprintforge.logic;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * One decision for both the enchanting table and the anvil, so neither can be used to bypass the other.
  * A pure function of the mode, the forged marker, the modpack exception tags and the book flag.
  */
 public final class EnchantPolicy {
+    private static final Pattern TIER_NUMBER = Pattern.compile("tier(\\d+)");
+
     private EnchantPolicy() {
     }
 
     public enum Mode {
-        OFF, RESTRICTED, FULL;
+        OFF, RESTRICTED, FULL, SCALED;
 
         public static Optional<Mode> parse(String value) {
             try {
@@ -35,14 +41,18 @@ public final class EnchantPolicy {
         UNKNOWN_TIER
     }
 
-    public record Subject(Forged forged, boolean inAllowedTag, boolean inDeniedTag, boolean isBook) {
+    public record Subject(Forged forged, boolean inAllowedTag, boolean inDeniedTag, boolean isBook, int tierNumber) {
+        public Subject(Forged forged, boolean inAllowedTag, boolean inDeniedTag, boolean isBook) {
+            this(forged, inAllowedTag, inDeniedTag, isBook, -1);
+        }
     }
 
     public enum Verdict {
         ALLOW(null),
         DENY_RESTRICTED("message.blueprintforge.enchanting.restricted"),
         DENY_FULL("message.blueprintforge.enchanting.full"),
-        DENY_BOOKS("message.blueprintforge.enchanting.books_disabled");
+        DENY_BOOKS("message.blueprintforge.enchanting.books_disabled"),
+        DENY_SCALED("message.blueprintforge.enchanting.scaled_none");
 
         private final String messageKey;
 
@@ -65,11 +75,53 @@ public final class EnchantPolicy {
         return mode == Mode.FULL || disableBooksFlag;
     }
 
+    /**
+     * Number in a tier id path {@code tierN}. Namespace is ignored. Unparsed paths, including a missing tier, are {@code -1}.
+     */
+    public static int tierNumber(ResourceLocation tierId) {
+        if (tierId == null) {
+            return -1;
+        }
+        Matcher matcher = TIER_NUMBER.matcher(tierId.getPath());
+        if (!matcher.matches()) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Highest enchantment level a forged tier may receive in {@code scaled}.
+     * No tier and T0 get nothing. T1 and T2 get 1, T3 gets 2, T4 gets 3, T5 gets 4. Anything else gets nothing.
+     */
+    public static int levelCap(int tierNumber) {
+        return switch (tierNumber) {
+            case 1, 2 -> 1;
+            case 3 -> 2;
+            case 4 -> 3;
+            case 5 -> 4;
+            default -> 0;
+        };
+    }
+
+    /** Offer level after the scaled cap. {@code 0} means the offer is dropped. */
+    public static int clampedOfferLevel(int rolled, int minLevel, int cap) {
+        if (cap <= 0) {
+            return 0;
+        }
+        int next = Math.min(rolled, cap);
+        return next >= minLevel ? next : 0;
+    }
+
     public static Verdict evaluate(Mode mode, boolean disableBooksFlag, Subject subject) {
         return switch (mode) {
             case OFF -> Verdict.ALLOW;
             case FULL -> Verdict.DENY_FULL;
             case RESTRICTED -> restricted(disableBooksFlag, subject);
+            case SCALED -> levelCap(subject.tierNumber()) <= 0 ? Verdict.DENY_SCALED : Verdict.ALLOW;
         };
     }
 

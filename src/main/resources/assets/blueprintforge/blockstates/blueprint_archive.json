@@ -1,6 +1,5 @@
 {
   "variants": {
-    "axis=x": { "model": "blueprintforge:block/blueprint_archive" },
-    "axis=z": { "model": "blueprintforge:block/blueprint_archive", "y": 90 }
+    "": { "model": "blueprintforge:block/blueprint_archive" }
   }
 }

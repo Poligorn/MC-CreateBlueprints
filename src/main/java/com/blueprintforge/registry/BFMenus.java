@@ -4,6 +4,7 @@ import java.util.function.Supplier;
 
 import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.machine.BlueprintArchiveMenu;
+import com.blueprintforge.machine.ProjectBureauMenu;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
@@ -15,6 +16,9 @@ public final class BFMenus {
 
     public static final Supplier<MenuType<BlueprintArchiveMenu>> BLUEPRINT_ARCHIVE = MENUS.register("blueprint_archive",
             () -> IMenuTypeExtension.create(BlueprintArchiveMenu::fromNetwork));
+
+    public static final Supplier<MenuType<ProjectBureauMenu>> PROJECT_BUREAU = MENUS.register("project_bureau",
+            () -> IMenuTypeExtension.create(ProjectBureauMenu::fromNetwork));
 
     private BFMenus() {
     }

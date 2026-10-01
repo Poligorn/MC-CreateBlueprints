@@ -4,9 +4,8 @@
   "package": "com.blueprintforge.compat.create",
   "compatibilityLevel": "JAVA_21",
     "mixins": [
-    "BeltInventoryMixin",
-    "BeltProcessingBehaviourMixin",
     "BasinAccess",
+    "EnchantmentMenuMixin",
     "BasinRecipeMixin",
     "MixerDurationMixin",
     "MechanicalCraftingMixin",

@@ -34,11 +34,12 @@ public final class BlueprintForgeClient {
     }
 
     private static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(BFBlocks.BLUEPRINT_ARCHIVE_ENTITY.get(), ArchivePressRenderer::new);
+        event.registerBlockEntityRenderer(BFBlocks.PROJECT_BUREAU_ENTITY.get(), ArchivePressRenderer::new);
     }
 
     private static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(BFMenus.BLUEPRINT_ARCHIVE.get(), BlueprintArchiveScreen::new);
+        event.register(BFMenus.PROJECT_BUREAU.get(), ProjectBureauScreen::new);
     }
 
     /** The creative tab lists loaded definitions, so it is rebuilt whenever the server sends new ones. */

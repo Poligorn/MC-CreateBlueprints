@@ -5,6 +5,8 @@ import java.util.function.Supplier;
 import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.machine.BlueprintArchiveBlock;
 import com.blueprintforge.machine.BlueprintArchiveBlockEntity;
+import com.blueprintforge.machine.ProjectBureauBlock;
+import com.blueprintforge.machine.ProjectBureauBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.SoundType;
@@ -24,12 +26,23 @@ public final class BFBlocks {
                     .mapColor(MapColor.TERRACOTTA_BROWN)
                     .strength(3.0F, 6.0F)
                     .sound(SoundType.NETHERITE_BLOCK)
+                    .requiresCorrectToolForDrops()));
+
+    public static final DeferredBlock<ProjectBureauBlock> PROJECT_BUREAU = BLOCKS.register("project_bureau",
+            () -> new ProjectBureauBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BROWN)
+                    .strength(3.0F, 6.0F)
+                    .sound(SoundType.NETHERITE_BLOCK)
                     .requiresCorrectToolForDrops()
                     .noOcclusion()));
 
     @SuppressWarnings("DataFlowIssue")
     public static final Supplier<BlockEntityType<BlueprintArchiveBlockEntity>> BLUEPRINT_ARCHIVE_ENTITY = BLOCK_ENTITIES.register("blueprint_archive",
             () -> BlockEntityType.Builder.of(BlueprintArchiveBlockEntity::new, BLUEPRINT_ARCHIVE.get()).build(null));
+
+    @SuppressWarnings("DataFlowIssue")
+    public static final Supplier<BlockEntityType<ProjectBureauBlockEntity>> PROJECT_BUREAU_ENTITY = BLOCK_ENTITIES.register("project_bureau",
+            () -> BlockEntityType.Builder.of(ProjectBureauBlockEntity::new, PROJECT_BUREAU.get()).build(null));
 
     private BFBlocks() {
     }

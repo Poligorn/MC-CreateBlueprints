@@ -155,7 +155,7 @@ public final class ViewerCatalog {
                             Component.translatable(tier.requiresBlueprint()
                                     ? "gui.blueprintforge.viewer.tier_requires"
                                     : "gui.blueprintforge.viewer.tier_free"),
-                            enchantLine(mode, tier.requiresBlueprint())));
+                            enchantLine(mode, entry.getKey())));
                 });
         return List.copyOf(pages);
     }
@@ -181,6 +181,7 @@ public final class ViewerCatalog {
             case OFF -> List.of();
             case RESTRICTED -> List.of(Component.translatable("gui.blueprintforge.viewer.enchant_restricted"));
             case FULL -> List.of(Component.translatable("gui.blueprintforge.viewer.enchant_full"));
+            case SCALED -> List.of(Component.translatable("gui.blueprintforge.viewer.enchant_scaled"));
         };
     }
 
@@ -214,13 +215,20 @@ public final class ViewerCatalog {
                         range.min(), next.getAsInt(), range.max())));
     }
 
-    private static @Nullable Component enchantLine(EnchantPolicy.Mode mode, boolean requiresBlueprint) {
+    private static @Nullable Component enchantLine(EnchantPolicy.Mode mode, ResourceLocation tierId) {
         return switch (mode) {
             case OFF -> null;
             case FULL -> Component.translatable("gui.blueprintforge.viewer.enchant_full");
-            case RESTRICTED -> requiresBlueprint
-                    ? Component.translatable("gui.blueprintforge.viewer.tier_no_table")
-                    : null;
+            case RESTRICTED -> {
+                boolean requiresBlueprint = TierRegistry.get(tierId).map(TierDefinition::requiresBlueprint).orElse(true);
+                yield requiresBlueprint ? Component.translatable("gui.blueprintforge.viewer.tier_no_table") : null;
+            }
+            case SCALED -> {
+                int cap = EnchantPolicy.levelCap(EnchantPolicy.tierNumber(tierId));
+                yield cap <= 0
+                        ? Component.translatable("gui.blueprintforge.viewer.enchant_scaled_none")
+                        : Component.translatable("gui.blueprintforge.viewer.enchant_scaled_cap", cap);
+            }
         };
     }
 

@@ -26,7 +26,8 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 
 /**
  * Writes a blueprint's output onto a base item: forged mark, attribute modifiers the item already holds,
- * and durability. No weapon-specific branch. Ancient roll multipliers are not applied.
+ * and durability. No weapon-specific branch. Does not set a custom name: only an ancient blueprint may
+ * name its output, and that roll is not applied in this phase. Ancient roll multipliers are not applied.
  */
 public final class BlueprintOutputApplicator {
     private BlueprintOutputApplicator() {
@@ -37,7 +38,7 @@ public final class BlueprintOutputApplicator {
         ItemStack result = input.copy();
         int produced = Math.min(definition.output().count(), result.getMaxStackSize());
         if (produced != definition.output().count()) {
-            BlueprintForge.LOGGER.debug("Remake output count {} does not fit on {}, clamped to {}",
+            BlueprintForge.LOGGER.debug("Output count {} does not fit on {}, clamped to {}",
                     definition.output().count(), BuiltInRegistries.ITEM.getKey(result.getItem()), produced);
         }
         result.setCount(produced);
@@ -77,7 +78,7 @@ public final class BlueprintOutputApplicator {
     }
 
     /**
-     * A fresh tool keeps its attributes on the item prototype. Prefer those over an empty override so a remake
+     * A fresh tool keeps its attributes on the item prototype. Prefer those over an empty override so a craft
      * adds to the sword instead of replacing it with nothing.
      */
     private static ItemAttributeModifiers attributeModifiers(ItemStack stack) {
@@ -103,7 +104,7 @@ public final class BlueprintOutputApplicator {
                     : ResourceLocation.withDefaultNamespace("generic." + path);
             found = attributes.get(ResourceKey.create(Registries.ATTRIBUTE, alias));
             if (found.isPresent()) {
-                BlueprintForge.LOGGER.debug("Attribute {} is not in this registry; remake uses {}", id, alias);
+                BlueprintForge.LOGGER.debug("Attribute {} is not in this registry; output uses {}", id, alias);
             }
         }
         return found;

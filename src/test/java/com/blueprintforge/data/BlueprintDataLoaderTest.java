@@ -98,7 +98,7 @@ class BlueprintDataLoaderTest {
         assertEquals(30, blade.materialEfficiencyOrFixed().max());
         assertEquals(OutputModifier.Mode.MULTIPLY_TOTAL, blade.output().attributes().getFirst().mode());
         assertEquals(10, blade.copy().orElseThrow().mePenalty());
-        assertTrue(blade.remake().isEmpty());
+        assertFalse(blade.namesOutput());
         assertTrue(blade.copy().orElseThrow().copyCost().get(1).itemOrFluid().right().isPresent());
 
         SourceDefinition source = result.sources().get(id("guild_blade_chests"));
@@ -152,15 +152,38 @@ class BlueprintDataLoaderTest {
     }
 
     @Test
-    void remakeProcessingTimeLoadsAndRejectsZero() {
-        String withRemake = GUILD_BLADE.replace("\"copy\":", "\"remake\": {\"processing_time\": 100}, \"copy\":");
-        BlueprintDefinition blade = load(Map.of(id("guild_blade"), withRemake), Map.of()).blueprints().get(id("guild_blade"));
-        assertEquals(100, blade.remake().orElseThrow().processingTime());
+    void tierLabelsAreT1ThroughT5InBothLanguages() throws Exception {
+        String en = new String(BlueprintDataLoaderTest.class.getResourceAsStream("/assets/blueprintforge/lang/en_us.json").readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        String ru = new String(BlueprintDataLoaderTest.class.getResourceAsStream("/assets/blueprintforge/lang/ru_ru.json").readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        for (int number = 1; number <= 5; number++) {
+            String line = "\"tier.blueprintforge.tier" + number + "\": \"T" + number + "\"";
+            assertTrue(en.contains(line), line);
+            assertTrue(ru.contains(line), line);
+        }
+        assertFalse(en.contains("Crafted"));
+        assertFalse(ru.contains("Ремесленный"));
+        assertFalse(en.contains("Handmade"));
+        assertFalse(ru.contains("Кустарный"));
+    }
 
-        String zero = withRemake.replace("100", "0");
-        BlueprintDataLoader.Result rejected = load(Map.of(id("zero"), zero), Map.of());
+    @Test
+    void namesOutputIsAncientOnly() {
+        String ignoredRemake = GUILD_BLADE.replace("\"copy\":", "\"remake\": {\"processing_time\": 100}, \"copy\":");
+        BlueprintDefinition stillLoads = load(Map.of(id("guild_blade"), ignoredRemake), Map.of()).blueprints().get(id("guild_blade"));
+        assertFalse(stillLoads.namesOutput());
+
+        String namedOriginal = GUILD_BLADE.replace("\"class\": \"original\"", "\"class\": \"original\", \"names_output\": true");
+        BlueprintDataLoader.Result rejected = load(Map.of(id("named"), namedOriginal), Map.of());
         assertTrue(rejected.blueprints().isEmpty());
-        assertTrue(hasError(rejected, "zero.json"));
+        assertTrue(hasError(rejected, "named.json", "names_output"));
+
+        String ancient = """
+                {"tier": 2, "class": "ancient", "names_output": true, "target": "minecraft:iron_sword",
+                 "display": {"name": "Relic"}, "tags": []}
+                """;
+        BlueprintDefinition relic = load(Map.of(id("relic"), ancient), Map.of()).blueprints().get(id("relic"));
+        assertTrue(relic.namesOutput());
+        assertEquals(BlueprintClass.ANCIENT, relic.clazz());
     }
 
     @Test

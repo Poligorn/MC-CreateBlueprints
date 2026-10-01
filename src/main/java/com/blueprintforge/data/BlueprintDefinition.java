@@ -27,7 +27,7 @@ public record BlueprintDefinition(
         Optional<EfficiencyRange> materialEfficiency,
         Optional<EfficiencyRange> timeEfficiency,
         Optional<CopyRules> copy,
-        Optional<Remake> remake,
+        boolean namesOutput,
         Optional<Integer> fittingSlots,
         Display display,
         Optional<List<TooltipFlag>> tooltipFlags,
@@ -47,7 +47,7 @@ public record BlueprintDefinition(
             EfficiencyRange.CODEC.optionalFieldOf("material_efficiency").forGetter(BlueprintDefinition::materialEfficiency),
             EfficiencyRange.CODEC.optionalFieldOf("time_efficiency").forGetter(BlueprintDefinition::timeEfficiency),
             CopyRules.CODEC.optionalFieldOf("copy").forGetter(BlueprintDefinition::copy),
-            Remake.CODEC.optionalFieldOf("remake").forGetter(BlueprintDefinition::remake),
+            Codec.BOOL.optionalFieldOf("names_output", false).forGetter(BlueprintDefinition::namesOutput),
             Codec.intRange(0, 16).optionalFieldOf("fitting_slots").forGetter(BlueprintDefinition::fittingSlots),
             Display.CODEC.fieldOf("display").forGetter(BlueprintDefinition::display),
             TooltipFlag.CODEC.listOf().optionalFieldOf("tooltip_flags").forGetter(BlueprintDefinition::tooltipFlags),
@@ -60,6 +60,9 @@ public record BlueprintDefinition(
         }
         if (def.copy.isPresent() && (def.clazz == BlueprintClass.ANCIENT || def.clazz == BlueprintClass.FRAGMENT)) {
             return DataResult.error(() -> "'copy' is not allowed for class " + def.clazz.getSerializedName());
+        }
+        if (def.namesOutput && def.clazz != BlueprintClass.ANCIENT) {
+            return DataResult.error(() -> "'names_output' is only allowed for class ancient");
         }
         return DataResult.success(def);
     }
@@ -123,16 +126,6 @@ public record BlueprintDefinition(
         ).apply(i, CopyRules::new)).validate(c -> c.defaultRuns > c.maxRuns
                 ? DataResult.error(() -> "default_runs " + c.defaultRuns + " is greater than max_runs " + c.maxRuns)
                 : DataResult.success(c));
-    }
-
-    /**
-     * Belt remake through the Archive tunnel. Absent means this blueprint does not rewrite items on the belt.
-     * {@code processingTime} is in the same units as a Create {@code processingTime}.
-     */
-    public record Remake(int processingTime) {
-        public static final Codec<Remake> CODEC = RecordCodecBuilder.create(i -> i.group(
-                Codec.intRange(1, 72_000).fieldOf("processing_time").forGetter(Remake::processingTime)
-        ).apply(i, Remake::new));
     }
 
     /** A {@code copy_cost} line: either {@code {item, count}} or {@code {fluid, amount}}. */

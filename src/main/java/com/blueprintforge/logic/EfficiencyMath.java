@@ -4,7 +4,7 @@ import java.util.OptionalInt;
 
 /**
  * Research step, copy price, and production ME/TE. Ancient rolls stay out of this class.
- * Research and belt-remake duration use the Create mixer countdown: the datapack field is in Create
+ * Research and copy duration use the Create mixer countdown: the datapack field is in Create
  * {@code processingTime} units, and TE does not enter that formula. Production time is different:
  * TE scales the recipe's own {@code processingTime} before Create applies shaft speed.
  */

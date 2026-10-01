@@ -50,7 +50,7 @@ public class BlueprintForgeJeiPlugin implements IModPlugin {
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
         IGuiHelper gui = registration.getJeiHelpers().getGuiHelper();
-        IDrawable icon = gui.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(BFItems.BLUEPRINT_ARCHIVE.get()));
+        IDrawable icon = gui.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(BFItems.PROJECT_BUREAU.get()));
         registration.addRecipeCategories(new ResearchCategory(icon), new CopyCategory(icon), new TierCategory(icon));
     }
 
@@ -71,7 +71,7 @@ public class BlueprintForgeJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
-        registration.addRecipeCatalyst(new ItemStack(BFItems.BLUEPRINT_ARCHIVE.get()), RESEARCH, COPY, TIER);
+        registration.addRecipeCatalyst(new ItemStack(BFItems.PROJECT_BUREAU.get()), RESEARCH, COPY, TIER);
     }
 
     @Override

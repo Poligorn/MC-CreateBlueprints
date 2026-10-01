@@ -8,9 +8,9 @@
   ],
   "copy_time_per_run_ticks": 80,
   "copy_stress": 256,
-  "me_step_cost": [{ "item": "minecraft:iron_ingot", "count": 4 }],
-  "te_step_cost": [{ "item": "minecraft:redstone", "count": 8 }],
+  "me_step_cost": [{ "item": "minecraft:iron_ingot", "count": 12 }],
+  "te_step_cost": [{ "item": "minecraft:redstone", "count": 24 }],
   "stress_per_step": 256,
-  "time_per_step_ticks": 400,
+  "time_per_step_ticks": 1200,
   "allow_research_on_copy": false
 }

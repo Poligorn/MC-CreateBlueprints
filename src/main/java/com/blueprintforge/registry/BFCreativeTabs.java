@@ -26,6 +26,7 @@ public final class BFCreativeTabs {
             .icon(() -> new ItemStack(BFItems.BLUEPRINT_ARCHIVE.get()))
             .displayItems((parameters, output) -> {
                 output.accept(BFItems.BLUEPRINT_ARCHIVE.get());
+                output.accept(BFItems.PROJECT_BUREAU.get());
                 BlueprintRegistry.all().forEach((id, definition) ->
                         output.accept(BlueprintItem.createInstance(id, definition, BlueprintData.UNISSUED)));
             })

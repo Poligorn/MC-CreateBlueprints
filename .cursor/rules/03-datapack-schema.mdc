@@ -41,7 +41,7 @@ data/<namespace>/
 - `output.count` — размер выпуска, обычно 1.
 - `material_efficiency` / `time_efficiency` — объекты `{ min, max, step }`. Эталон ME: 0, 30, 3. Эталон TE: 0, 40, 5.
 - `copy` — нет у `ancient` и `fragment`. Поля: `enabled`, `default_runs`, `max_runs`, `me_penalty`, `te_penalty`, `copy_cost[]` (`item` или `fluid`, `count` / `amount`), `cost_scaling`. Дополнительное поле `allow_from_copy`, по умолчанию false.
-- `remake.processing_time` — необязательный объект. Если его нет, Архив этот чертёж на ленте не переделывает. Число — длительность в тех же единицах, что `processingTime` рецепта Create; эталон цехового клинка 100. Ноль и отрицательное значение — битая запись. Id атрибута в `output.attributes` — id реестра этой версии. В 1.21.1 урон — `minecraft:generic.attack_damage`. Загрузчик принимает и короткую форму `minecraft:attack_damage`, если в реестре есть только одна из двух, и пишет модификатор на тот id, который реально есть.
+- `names_output` — необязательный bool, по умолчанию false. `true` допустим только у класса `ancient`; на остальных классах запись пропускается с ошибкой в логе. Поле разрешает древнему чертежу задать имя предмета. Ролл, который это имя пишет, в этой фазе не выполняется, и выпуск имя не ставит. Старое поле `remake` больше не читается. Id атрибута в `output.attributes` — id реестра этой версии. В 1.21.1 урон — `minecraft:generic.attack_damage`. Загрузчик принимает и короткую форму `minecraft:attack_damage`, если в реестре есть только одна из двух, и пишет модификатор на тот id, который реально есть.
 - `fitting_slots` — необязательное переопределение тира. До фичи фитингов игроку не показывается.
 - `display.name` и строки лора — текстовые компоненты (`text` или `translate`).
 - `display.item_model` — необязательная модель поверх модели класса.
@@ -61,11 +61,11 @@ data/<namespace>/
 
 | id | display | color | requires_blueprint | прочность | слоты |
 |---|---|---|---|---|---|
-| `blueprintforge:tier1` | Кустарный | `#9E9E9E` | false | 1.00 | 0 |
-| `blueprintforge:tier2` | Ремесленный | `#4CAF50` | true | 1.10 | 0 |
-| `blueprintforge:tier3` | Промышленный | `#2196F3` | true | 1.25 | 1 |
-| `blueprintforge:tier4` | Артельный | `#9C27B0` | true | 1.50 | 2 |
-| `blueprintforge:tier5` | Древний | `#FF9800` | true | 2.00 | 3 |
+| `blueprintforge:tier1` | T1 | `#9E9E9E` | false | 1.00 | 0 |
+| `blueprintforge:tier2` | T2 | `#4CAF50` | true | 1.10 | 0 |
+| `blueprintforge:tier3` | T3 | `#2196F3` | true | 1.25 | 1 |
+| `blueprintforge:tier4` | T4 | `#9C27B0` | true | 1.50 | 2 |
+| `blueprintforge:tier5` | T5 | `#FF9800` | true | 2.00 | 3 |
 
 У T1 нет глобального множителя силы сверх 1. Урон тиров 2–4 в этот файл не писать: он лежит в `output.attributes` каждого чертежа, иначе бонус применится дважды.
 
@@ -74,9 +74,9 @@ data/<namespace>/
 Политика сервера, не свойство одного предмета.
 
 - `applies_to` — список тегов или id чертежей
-- `me_step_cost`, `te_step_cost` — предметы и жидкости
+- `me_step_cost`, `te_step_cost` — предметы и жидкости. Эталон цехового клинка: 12 железа на шаг ME, 24 редстоуна на шаг TE
 - `stress_per_step` — эталон 256
-- `time_per_step_ticks` — эталон 400
+- `time_per_step_ticks` — эталон 1200. При 16 RPM это 901 тик
 - `allow_research_on_copy` — эталон false
 - `copy_time_per_run_ticks` — эталон 80, длительность копирования на один прогон копии
 - `copy_stress` — эталон 256
@@ -128,7 +128,7 @@ data/<namespace>/
 - `output_blueprint` — id определения оригинала
 - `fragments_required` — эталон пути T3: 12
 - `fragment_item` — id определения фрагмента
-- `machine` — эталон `blueprintforge:blueprint_archive`
+- `machine` — эталон `blueprintforge:project_bureau`. Архив сборку не выполняет: другой id пропускается с ошибкой в логе
 - `process_time_ticks`
 - `extra_ingredients[]`
 - `one_time_per_chunk`
@@ -160,7 +160,8 @@ data/<namespace>/
 
 ```toml
 [enchanting]
-mode = "restricted" # off | restricted | full; теги enchanting_allowed/denied действуют только в restricted
+mode = "restricted" # off | restricted | full | scaled. Теги только в restricted.
+# scaled: потолок уровня чар по тиру. Без тира и T0 — нет; T1 — 1; T2 — 1; T3 — 2; T4 — 3; T5 — 4. Ванильный предмет не зачаровать.
 disable_books = false # при mode = "full" книги выключены в любом случае
 
 [rarity]

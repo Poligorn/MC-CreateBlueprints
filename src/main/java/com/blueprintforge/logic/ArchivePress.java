@@ -1,9 +1,9 @@
 package com.blueprintforge.logic;
 
 /**
- * Where the Archive's press head sits. {@code 0} is fully raised under the roof, {@code 1} is down on the item.
- * The head only moves while an operation is actually working an item (research step or belt remake).
- * A stopped shaft or an idle archive holds the head up: it does not keep striking.
+ * Where the bureau's press head sits. {@code 0} is fully raised under the roof, {@code 1} is down on the item.
+ * The head only moves while the bureau is researching or printing a copy. Assembly and an idle bureau
+ * hold the head up: it does not keep striking.
  * <p>
  * Strike length shortens as the shaft spins faster, in the same spirit as Create's {@code 512 / speed}
  * term, and the phase advances with operation progress so the blow is part of that operation.

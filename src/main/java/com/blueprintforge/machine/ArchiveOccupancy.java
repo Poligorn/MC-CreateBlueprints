@@ -72,7 +72,7 @@ public final class ArchiveOccupancy extends SavedData {
             return true;
         }
         BlockEntity be = level.getBlockEntity(pos.pos());
-        return be instanceof BlueprintArchiveBlockEntity archive && archive.holdsInstance(instanceId);
+        return be instanceof DocumentHolder holder && holder.holdsInstance(instanceId);
     }
 
     @Override

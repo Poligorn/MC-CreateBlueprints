@@ -3,10 +3,10 @@ package com.blueprintforge.logic;
 import net.minecraft.util.Mth;
 
 /**
- * How many game ticks a belt remake takes. Same formula as {@code MechanicalMixerBlockEntity} in Create
- * 6.0.10: {@code processingTime} is the recipe's {@code processingTime} (100 is one reference cycle),
- * and the network RPM turns that into a countdown. The {@code 512 / speed} ratio is clamped to at least 1
- * so {@code log2} stays defined above 512 RPM, where the mixer formula would see zero.
+ * How many game ticks one Create {@code processingTime} budget takes on a shaft. Same formula as
+ * {@code MechanicalMixerBlockEntity} in Create 6.0.10. Research uses {@code time_per_step_ticks}.
+ * One printed copy run uses {@code copy_time_per_run_ticks}; the bureau multiplies that by the run count.
+ * The {@code 512 / speed} ratio is clamped to at least 1 so {@code log2} stays defined above 512 RPM.
  */
 public final class RemakeMath {
     private RemakeMath() {
@@ -14,8 +14,8 @@ public final class RemakeMath {
 
     /**
      * @param absoluteSpeed shaft speed in RPM, already absolute
-     * @param processingTime datapack {@code remake.processing_time}
-     * @return game ticks until the remake completes, or {@code 0} when the shaft is stopped or the time is not positive
+     * @param processingTime datapack time in Create {@code processingTime} units
+     * @return game ticks for that budget, or {@code 0} when the shaft is stopped or the time is not positive
      */
     public static int processingTicks(float absoluteSpeed, int processingTime) {
         if (!(absoluteSpeed > 0.0F) || processingTime <= 0) {

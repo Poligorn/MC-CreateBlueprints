@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "blueprintforge:block/project_bureau" },
+    "facing=east": { "model": "blueprintforge:block/project_bureau", "y": 90 },
+    "facing=south": { "model": "blueprintforge:block/project_bureau", "y": 180 },
+    "facing=west": { "model": "blueprintforge:block/project_bureau", "y": 270 }
+  }
+}
