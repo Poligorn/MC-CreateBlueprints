@@ -4,12 +4,10 @@
   "package": "com.blueprintforge.compat.create",
   "compatibilityLevel": "JAVA_21",
     "mixins": [
-    "BasinAccess",
     "EnchantmentMenuMixin",
-    "BasinRecipeMixin",
-    "MixerDurationMixin",
-    "MechanicalCraftingMixin",
-    "RecipeManagerMixin"
+    "RecipeManagerMixin",
+    "SequencedAssemblyMixin",
+    "DeployerLineMixin"
   ],
   "injectors": {
     "defaultRequire": 1

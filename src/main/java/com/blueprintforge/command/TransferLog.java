@@ -22,11 +22,11 @@ import net.minecraft.world.level.saveddata.SavedData;
 /** The /bf log journal, plus the in-memory confirmation that has not been accepted yet. */
 public final class TransferLog extends SavedData {
     public record Entry(String time, UUID from, String fromName, UUID to, String toName, ResourceLocation blueprintId,
-                        UUID instanceId, int materialEfficiency, int timeEfficiency) {
+                        UUID instanceId, int materialEfficiency, int flux, int potency) {
     }
 
     public record Pending(UUID from, UUID to, UUID instanceId, ResourceLocation blueprintId, int materialEfficiency,
-                          int timeEfficiency, long expiresAt) {
+                          int flux, int potency, long expiresAt) {
     }
 
     private final List<Entry> entries = new ArrayList<>();
@@ -44,7 +44,7 @@ public final class TransferLog extends SavedData {
     public static final class PendingBox {
         public void offer(UUID from, UUID to, ItemStack stack, UUID instanceId, long expiresAt) {
             BlueprintData data = BlueprintItem.data(stack).orElseThrow();
-            PENDING.put(to, new Pending(from, to, instanceId, data.definitionId(), data.materialEfficiency(), data.timeEfficiency(), expiresAt));
+            PENDING.put(to, new Pending(from, to, instanceId, data.definitionId(), data.materialEfficiency(), data.flux(), data.potency(), expiresAt));
         }
 
         public Pending take(UUID to) {
@@ -65,17 +65,18 @@ public final class TransferLog extends SavedData {
             if (blueprint == null || !entry.hasUUID("From") || !entry.hasUUID("To") || !entry.hasUUID("Instance")) {
                 continue;
             }
+            int flux = entry.contains("Flux") ? entry.getInt("Flux") : entry.getInt("TE");
             log.entries.add(new Entry(entry.getString("Time"), entry.getUUID("From"), entry.getString("FromName"),
                     entry.getUUID("To"), entry.getString("ToName"), blueprint, entry.getUUID("Instance"),
-                    entry.getInt("ME"), entry.getInt("TE")));
+                    entry.getInt("ME"), flux, entry.getInt("Potency")));
         }
         return log;
     }
 
     public void append(UUID from, String fromName, UUID to, String toName, ResourceLocation blueprint, UUID instance,
-                       int materialEfficiency, int timeEfficiency) {
+                       int materialEfficiency, int flux, int potency) {
         entries.add(new Entry(java.time.Instant.now().toString(), from, fromName, to, toName, blueprint, instance,
-                materialEfficiency, timeEfficiency));
+                materialEfficiency, flux, potency));
         setDirty();
     }
 
@@ -96,7 +97,8 @@ public final class TransferLog extends SavedData {
             row.putString("Blueprint", entry.blueprintId().toString());
             row.putUUID("Instance", entry.instanceId());
             row.putInt("ME", entry.materialEfficiency());
-            row.putInt("TE", entry.timeEfficiency());
+            row.putInt("Flux", entry.flux());
+            row.putInt("Potency", entry.potency());
             list.add(row);
         }
         tag.put("Entries", list);

@@ -45,7 +45,9 @@ public class BlueprintItem extends Item {
                 definition.target(),
                 definition.clazz().initialRuns(copyRuns),
                 definition.materialEfficiencyOrFixed().min(),
-                definition.timeEfficiencyOrFixed().min(),
+                definition.fluxOrFixed().min(),
+                definition.potencyOrFixed().min(),
+                0L,
                 Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
                 Optional.empty(), Optional.empty(), Optional.empty());
         ItemStack stack = new ItemStack(BFItems.BLUEPRINT.get());
@@ -62,9 +64,11 @@ public class BlueprintItem extends Item {
         if (data == null || !data.isUnissued()) {
             return false;
         }
+        long found = owner != null && owner.level() != null ? owner.level().getGameTime() : 0L;
         stack.set(BFComponents.BLUEPRINT.get(), data.issuedTo(UUID.randomUUID(),
                 Optional.ofNullable(owner).map(Player::getUUID),
-                Optional.ofNullable(owner).map(player -> player.getGameProfile().getName())));
+                Optional.ofNullable(owner).map(player -> player.getGameProfile().getName()),
+                found));
         return true;
     }
 

@@ -1,33 +1,39 @@
 package com.blueprintforge.client;
 
 import com.blueprintforge.BlueprintForge;
-import com.blueprintforge.item.BlueprintItem;
 import com.blueprintforge.registry.BFCreativeTabs;
 import com.blueprintforge.registry.BFItems;
 import com.blueprintforge.registry.BFMenus;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.item.ItemProperties;
+import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.world.item.CreativeModeTab;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 @Mod(value = BlueprintForge.MOD_ID, dist = Dist.CLIENT)
 public final class BlueprintForgeClient {
-    /** Item model predicate: 0 blank, 1 original, 2 copy, 3 ancient, 4 fragment. */
-    public static final String CLASS_PROPERTY = "class";
-
     public BlueprintForgeClient(IEventBus modBus) {
-        modBus.addListener(BlueprintForgeClient::clientSetup);
         modBus.addListener(BlueprintForgeClient::registerScreens);
+        modBus.addListener(BlueprintForgeClient::registerItemExtensions);
     }
 
-    private static void clientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> ItemProperties.register(BFItems.BLUEPRINT.get(), BlueprintForge.id(CLASS_PROPERTY),
-                (stack, level, entity, seed) -> BlueprintItem.data(stack).map(data -> data.clazz().ordinal() + 1.0F).orElse(0.0F)));
+    private static void registerItemExtensions(RegisterClientExtensionsEvent event) {
+        event.registerItem(new IClientItemExtensions() {
+            private BlockEntityWithoutLevelRenderer renderer;
+
+            @Override
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                if (renderer == null) {
+                    renderer = new BlueprintIconRenderer();
+                }
+                return renderer;
+            }
+        }, BFItems.BLUEPRINT.get());
     }
 
     private static void registerScreens(RegisterMenuScreensEvent event) {

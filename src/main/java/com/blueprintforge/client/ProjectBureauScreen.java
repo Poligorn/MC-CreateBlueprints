@@ -44,7 +44,8 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
     private static final int BAR_FILL = 0xFFC99E48;
 
     private Button materialButton;
-    private Button timeButton;
+    private Button fluxButton;
+    private Button potencyButton;
     private Button copyButton;
     private Button assembleButton;
 
@@ -60,10 +61,14 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         super.init();
         materialButton = addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.archive.research_button_me"),
                         button -> click(0))
-                .bounds(leftPos + 118, topPos + 76, 52, 16)
+                .bounds(leftPos + 118, topPos + 64, 52, 16)
                 .build());
-        timeButton = addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.archive.research_button_te"),
+        fluxButton = addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.archive.research_button_flux"),
                         button -> click(1))
+                .bounds(leftPos + 118, topPos + 82, 52, 16)
+                .build());
+        potencyButton = addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.archive.research_button_potency"),
+                        button -> click(6))
                 .bounds(leftPos + 118, topPos + 100, 52, 16)
                 .build());
         addRenderableWidget(Button.builder(Component.literal("−"), button -> click(3))
@@ -88,8 +93,11 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         if (materialButton != null) {
             materialButton.active = menu.datum(ProjectBureauBlockEntity.DATA_ME_REFUSAL) == ResearchRefusal.OK.ordinal();
         }
-        if (timeButton != null) {
-            timeButton.active = menu.datum(ProjectBureauBlockEntity.DATA_TE_REFUSAL) == ResearchRefusal.OK.ordinal();
+        if (fluxButton != null) {
+            fluxButton.active = menu.datum(ProjectBureauBlockEntity.DATA_FLUX_REFUSAL) == ResearchRefusal.OK.ordinal();
+        }
+        if (potencyButton != null) {
+            potencyButton.active = menu.datum(ProjectBureauBlockEntity.DATA_POTENCY_REFUSAL) == ResearchRefusal.OK.ordinal();
         }
         boolean assembling = menu.document().isEmpty();
         if (copyButton != null) {
@@ -147,7 +155,11 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         graphics.drawString(font, title, titleLabelX, titleLabelY, TEXT, false);
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, TEXT, false);
 
-        graphics.drawString(font, Component.translatable("gui.blueprintforge.bureau.table"), 8, 18, TEXT, false);
+        int speed = menu.datum(ProjectBureauBlockEntity.DATA_SPEED);
+        Component shaft = speed == 0
+                ? Component.translatable("gui.blueprintforge.archive.no_rotation")
+                : Component.translatable("gui.blueprintforge.archive.speed", speed);
+        graphics.drawString(font, font.split(shaft, 160).getFirst(), 8, 18, speed == 0 ? TEXT_WARN : TEXT, false);
 
         ItemStack document = menu.document();
         Component documentLine = document.isEmpty()
@@ -156,9 +168,11 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         graphics.drawString(font, font.split(documentLine, 160).getFirst(), 8, 50, TEXT, false);
 
         drawAxis(graphics, ResearchAxis.MATERIAL, ProjectBureauBlockEntity.DATA_ME, ProjectBureauBlockEntity.DATA_ME_MAX,
-                ProjectBureauBlockEntity.DATA_ME_NEXT, ProjectBureauBlockEntity.DATA_ME_REFUSAL, 76);
-        drawAxis(graphics, ResearchAxis.TIME, ProjectBureauBlockEntity.DATA_TE, ProjectBureauBlockEntity.DATA_TE_MAX,
-                ProjectBureauBlockEntity.DATA_TE_NEXT, ProjectBureauBlockEntity.DATA_TE_REFUSAL, 100);
+                ProjectBureauBlockEntity.DATA_ME_NEXT, ProjectBureauBlockEntity.DATA_ME_REFUSAL, 64);
+        drawAxis(graphics, ResearchAxis.FLUX, ProjectBureauBlockEntity.DATA_FLUX, ProjectBureauBlockEntity.DATA_FLUX_MAX,
+                ProjectBureauBlockEntity.DATA_FLUX_NEXT, ProjectBureauBlockEntity.DATA_FLUX_REFUSAL, 82);
+        drawAxis(graphics, ResearchAxis.POTENCY, ProjectBureauBlockEntity.DATA_POTENCY, ProjectBureauBlockEntity.DATA_POTENCY_MAX,
+                ProjectBureauBlockEntity.DATA_POTENCY_NEXT, ProjectBureauBlockEntity.DATA_POTENCY_REFUSAL, 100);
 
         int axis = menu.datum(ProjectBureauBlockEntity.DATA_AXIS);
         if (axis != 0) {
@@ -207,7 +221,11 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         int value = menu.datum(valueIndex);
         int max = menu.datum(maxIndex);
         int next = menu.datum(nextIndex);
-        String label = axis == ResearchAxis.MATERIAL ? "gui.blueprintforge.archive.research_me" : "gui.blueprintforge.archive.research_te";
+        String label = switch (axis) {
+            case MATERIAL -> "gui.blueprintforge.archive.research_me";
+            case FLUX -> "gui.blueprintforge.archive.research_flux";
+            case POTENCY -> "gui.blueprintforge.archive.research_potency";
+        };
         Component numbers = next < 0
                 ? Component.translatable(label, value, max, Component.translatable("gui.blueprintforge.archive.research.at_cap"))
                 : Component.translatable(label, value, max, Component.translatable("gui.blueprintforge.archive.research_next", next));
@@ -240,7 +258,11 @@ public class ProjectBureauScreen extends AbstractContainerScreen<ProjectBureauMe
         if (profile == null) {
             return Component.empty();
         }
-        List<BlueprintDefinition.CostEntry> cost = axis == ResearchAxis.MATERIAL ? profile.meStepCost() : profile.teStepCost();
+        BlueprintDefinition definition = BlueprintRegistry.get(data.definitionId()).orElse(null);
+        if (definition == null) {
+            return Component.empty();
+        }
+        List<BlueprintDefinition.CostEntry> cost = ProjectBureauBlockEntity.axisCost(profile, definition, axis);
         if (cost.isEmpty()) {
             return Component.translatable("gui.blueprintforge.archive.research_stress",
                     menu.datum(ProjectBureauBlockEntity.DATA_STRESS));

@@ -1,12 +1,3 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "blueprintforge:item/blueprint_blank"
-  },
-  "overrides": [
-    { "predicate": { "blueprintforge:class": 1 }, "model": "blueprintforge:item/blueprint_original" },
-    { "predicate": { "blueprintforge:class": 2 }, "model": "blueprintforge:item/blueprint_copy" },
-    { "predicate": { "blueprintforge:class": 3 }, "model": "blueprintforge:item/blueprint_ancient" },
-    { "predicate": { "blueprintforge:class": 4 }, "model": "blueprintforge:item/blueprint_fragment" }
-  ]
+  "parent": "builtin/entity"
 }

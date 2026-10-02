@@ -121,7 +121,7 @@ public final class EnchantPolicy {
             case OFF -> Verdict.ALLOW;
             case FULL -> Verdict.DENY_FULL;
             case RESTRICTED -> restricted(disableBooksFlag, subject);
-            case SCALED -> levelCap(subject.tierNumber()) <= 0 ? Verdict.DENY_SCALED : Verdict.ALLOW;
+            case SCALED -> restricted(disableBooksFlag, subject);
         };
     }
 

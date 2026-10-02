@@ -1,7 +1,8 @@
 package com.blueprintforge.logic;
 
-/** Which efficiency a research step advances. */
+/** Which axis a laboratory step advances. Time efficiency is not an axis. */
 public enum ResearchAxis {
     MATERIAL,
-    TIME
+    FLUX,
+    POTENCY
 }

@@ -95,7 +95,7 @@ public final class BFCommands {
             return 0;
         }
         TransferLog.get(to.serverLevel()).append(from.getUUID(), from.getGameProfile().getName(), to.getUUID(),
-                to.getGameProfile().getName(), pending.blueprintId(), pending.instanceId(), pending.materialEfficiency(), pending.timeEfficiency());
+                to.getGameProfile().getName(), pending.blueprintId(), pending.instanceId(), pending.materialEfficiency(), pending.flux(), pending.potency());
         from.sendSystemMessage(Component.translatable("command.blueprintforge.transfer.done", stack.getHoverName(), to.getName()));
         to.sendSystemMessage(Component.translatable("command.blueprintforge.transfer.received", stack.getHoverName(), from.getName()));
         return 1;
@@ -122,7 +122,7 @@ public final class BFCommands {
             TransferLog.Entry entry = entries.get(i);
             source.sendSuccess(() -> Component.translatable("command.blueprintforge.log.line",
                     entry.time(), entry.fromName(), entry.toName(), entry.blueprintId().toString(),
-                    entry.instanceId().toString(), entry.materialEfficiency(), entry.timeEfficiency()), false);
+                    entry.instanceId().toString(), entry.materialEfficiency(), entry.flux(), entry.potency()), false);
         }
         return 1;
     }

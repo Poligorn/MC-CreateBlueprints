@@ -80,7 +80,7 @@ class BlueprintDataLoaderTest {
         Map<ResourceLocation, JsonElement> researchJson = new TreeMap<>();
         research.forEach((k, v) -> researchJson.put(k, json(v)));
         BlueprintDataLoader.RawData raw = new BlueprintDataLoader.RawData(
-                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, researchJson, Map.of(), new ArrayList<>());
+                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, researchJson, Map.of(), Map.of(), Map.of(), new ArrayList<>());
         return BlueprintDataLoader.load(raw, JsonOps.INSTANCE, ITEMS);
     }
 
@@ -245,7 +245,7 @@ class BlueprintDataLoaderTest {
     @Test
     void blueprintComponentRoundTrips() {
         BlueprintData data = new BlueprintData(UUID.randomUUID(), id("guild_blade"), BlueprintClass.COPY, id("tier2"),
-                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), 7, 20, 30,
+                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), 7, 20, 30, 2, 0L,
                 Optional.of(UUID.randomUUID()), Optional.of("Engineer"), Optional.empty(), Optional.empty(),
                 Optional.of(UUID.randomUUID()), Optional.of("Owner"), Optional.of(new CompoundTag()));
         JsonElement encoded = BlueprintData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow();
@@ -260,18 +260,19 @@ class BlueprintDataLoaderTest {
     @Test
     void issuingATemplateSetsANewInstanceAndOwnerOnly() {
         BlueprintData template = new BlueprintData(BlueprintData.UNISSUED, id("guild_blade"), BlueprintClass.ORIGINAL, id("tier2"),
-                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), -1, 0, 0,
+                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), -1, 0, 0, 0, 0L,
                 Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
         assertTrue(template.isUnissued());
 
         UUID instance = UUID.randomUUID();
         UUID owner = UUID.randomUUID();
-        BlueprintData issued = template.issuedTo(instance, Optional.of(owner), Optional.of("Dev"));
+        BlueprintData issued = template.issuedTo(instance, Optional.of(owner), Optional.of("Dev"), 1000L);
         assertFalse(issued.isUnissued());
         assertEquals(instance, issued.instanceId());
         assertEquals(Optional.of(owner), issued.ownerUuid());
         assertEquals(Optional.of("Dev"), issued.ownerName());
-        assertEquals(template, issued.issuedTo(BlueprintData.UNISSUED, Optional.empty(), Optional.empty()));
+        assertEquals(1000L, issued.foundGameTime());
+        assertEquals(template, issued.issuedTo(BlueprintData.UNISSUED, Optional.empty(), Optional.empty(), 0L));
     }
 
     @Test

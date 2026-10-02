@@ -1,0 +1,10 @@
+{
+  "recipe": "blueprintforge:iron_sword_line",
+  "blueprint": "blueprintforge:guild_blade",
+  "stamp": "blueprintforge:stamps_t2",
+  "scrap_chance": 0.24,
+  "scrap_item": "minecraft:iron_nugget",
+  "ingredient": "minecraft:iron_ingot",
+  "dock_radius": 4,
+  "materials": [{ "item": "minecraft:iron_ingot", "count": 4 }]
+}

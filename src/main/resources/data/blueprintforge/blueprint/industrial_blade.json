@@ -10,13 +10,14 @@
     "count": 1
   },
   "material_efficiency": { "min": 0, "max": 30, "step": 3 },
-  "time_efficiency": { "min": 0, "max": 40, "step": 5 },
+  "flux": { "min": 0, "max": 80, "step": 10 },
+  "potency": { "min": 0, "max": 3, "step": 1 },
   "copy": {
     "enabled": true,
     "default_runs": 8,
     "max_runs": 30,
     "me_penalty": 10,
-    "te_penalty": 10,
+    "flux_penalty": 10,
     "copy_cost": [{ "item": "minecraft:paper", "count": 12 }],
     "cost_scaling": 1.35,
     "allow_from_copy": false

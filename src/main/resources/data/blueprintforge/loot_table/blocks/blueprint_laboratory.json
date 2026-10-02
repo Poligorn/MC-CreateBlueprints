@@ -3,9 +3,8 @@
   "pools": [
     {
       "rolls": 1,
-      "bonus_rolls": 0,
       "entries": [
-        { "type": "minecraft:item", "name": "blueprintforge:project_bureau" }
+        { "type": "minecraft:item", "name": "blueprintforge:blueprint_laboratory" }
       ],
       "conditions": [
         { "condition": "minecraft:survives_explosion" }
