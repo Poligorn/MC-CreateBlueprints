@@ -152,18 +152,18 @@ class BlueprintDataLoaderTest {
     }
 
     @Test
-    void tierLabelsAreT1ThroughT5InBothLanguages() throws Exception {
+    void tierNicknamesExistInBothLanguages() throws Exception {
         String en = new String(BlueprintDataLoaderTest.class.getResourceAsStream("/assets/blueprintforge/lang/en_us.json").readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         String ru = new String(BlueprintDataLoaderTest.class.getResourceAsStream("/assets/blueprintforge/lang/ru_ru.json").readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        String[] english = {"Handmade", "Crafted", "Industrial", "Guild", "Ancient"};
+        String[] russian = {"Кустарный", "Ремесленный", "Промышленный", "Артельный", "Древний"};
         for (int number = 1; number <= 5; number++) {
-            String line = "\"tier.blueprintforge.tier" + number + "\": \"T" + number + "\"";
-            assertTrue(en.contains(line), line);
-            assertTrue(ru.contains(line), line);
+            String enLine = "\"tier.blueprintforge.tier" + number + "\": \"" + english[number - 1] + "\"";
+            String ruLine = "\"tier.blueprintforge.tier" + number + "\": \"" + russian[number - 1] + "\"";
+            assertTrue(en.contains(enLine), enLine);
+            assertTrue(ru.contains(ruLine), ruLine);
+            assertFalse(en.contains("\"tier.blueprintforge.tier" + number + "\": \"T" + number + "\""));
         }
-        assertFalse(en.contains("Crafted"));
-        assertFalse(ru.contains("Ремесленный"));
-        assertFalse(en.contains("Handmade"));
-        assertFalse(ru.contains("Кустарный"));
     }
 
     @Test

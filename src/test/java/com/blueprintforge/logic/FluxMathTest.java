@@ -17,10 +17,10 @@ class FluxMathTest {
 
     @Test
     void aRollBelowTheChanceIsScrap() {
-        assertTrue(FluxMath.scraps(0.24, 0.0F));
-        assertTrue(FluxMath.scraps(0.24, 0.239F));
-        assertFalse(FluxMath.scraps(0.24, 0.24F));
-        assertFalse(FluxMath.scraps(0.048, 0.05F));
+        assertTrue(FluxMath.scraps(0.24, 0.0));
+        assertTrue(FluxMath.scraps(0.24, 0.239));
+        assertFalse(FluxMath.scraps(0.24, 0.24));
+        assertFalse(FluxMath.scraps(0.048, 0.05));
     }
 
     @Test

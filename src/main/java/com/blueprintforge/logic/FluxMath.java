@@ -16,7 +16,7 @@ public final class FluxMath {
         return baseChance * (100.0 - clamped) / 100.0;
     }
 
-    public static boolean scraps(double chance, float roll01) {
+    public static boolean scraps(double chance, double roll01) {
         return roll01 < chance;
     }
 }
