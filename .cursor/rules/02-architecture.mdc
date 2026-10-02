@@ -77,7 +77,7 @@ alwaysApply: true
 
 ## Зачарование и зрители
 
-`EnchantmentMenuMixin` и наковальня через `AnvilUpdateEvent`. `RecipeManagerMixin` по-прежнему нормализует сахар `blueprint`. Эталон этот сахар не использует.
+Стол и наковальня читают `EnchantPolicy`. В `scaled` это те же отказы, что в `restricted`, без потолка уровня. `RecipeManagerMixin` по-прежнему нормализует сахар `blueprint`. Эталон этот сахар не использует.
 
 `ViewerCatalog` строит шаги ME, Flux и Potency и печать со штрафом ME/Flux. Катализатор — предмет лаборатории. Режим `scaled` на странице чар показывает текст restricted.
 
