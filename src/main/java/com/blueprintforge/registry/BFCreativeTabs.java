@@ -5,7 +5,9 @@ import java.util.function.Supplier;
 import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.data.BlueprintData;
 import com.blueprintforge.data.BlueprintRegistry;
+import com.blueprintforge.data.StampData;
 import com.blueprintforge.item.BlueprintItem;
+import com.blueprintforge.registry.BFComponents;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -27,6 +29,11 @@ public final class BFCreativeTabs {
             .displayItems((parameters, output) -> {
                 output.accept(BFItems.BLUEPRINT_ARCHIVE.get());
                 output.accept(BFItems.PROJECT_BUREAU.get());
+                output.accept(BFItems.BLUEPRINT_DOCK.get());
+                output.accept(BFItems.INCOMPLETE_BLADE.get());
+                ItemStack stamp = new ItemStack(BFItems.BLUEPRINT_STAMP.get());
+                stamp.set(BFComponents.STAMP.get(), new StampData(BlueprintForge.id("guild_blade")));
+                output.accept(stamp);
                 BlueprintRegistry.all().forEach((id, definition) ->
                         output.accept(BlueprintItem.createInstance(id, definition, BlueprintData.UNISSUED)));
             })

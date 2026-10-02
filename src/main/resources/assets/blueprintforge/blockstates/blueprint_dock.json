@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "blueprintforge:block/blueprint_dock" },
+    "facing=east": { "model": "blueprintforge:block/blueprint_dock", "y": 90 },
+    "facing=south": { "model": "blueprintforge:block/blueprint_dock", "y": 180 },
+    "facing=west": { "model": "blueprintforge:block/blueprint_dock", "y": 270 }
+  }
+}

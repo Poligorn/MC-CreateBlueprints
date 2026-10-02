@@ -44,30 +44,33 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+
+import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 /**
- * Drafting table. Research redraws the blueprint, and copying prints another document, both on a timer.
- * No shaft and no network stress: one game tick advances the datapack duration by one.
- * Forged items are not made here: they come from a Create recipe with a blueprint slot.
+ * Blueprint Laboratory. Research, copying and fragment assembly each last a datapack number of game ticks,
+ * and only while the shaft in the roof is turning. Stress is applied only during that work.
+ * Forged items are not made here: they come off a sequenced assembly line.
  */
-public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvider, DocumentHolder {
+public class ProjectBureauBlockEntity extends KineticBlockEntity implements MenuProvider, DocumentHolder {
     private static final String BLUEPRINT_TAG = "Blueprint";
     /** Sentinel: the replacement is already queued, so a second tick must not spend another run. */
     public static final int MATERIAL_SLOTS = 16;
     public static final int DATA_ME = 0;
     public static final int DATA_ME_MAX = 1;
-    public static final int DATA_TE = 2;
-    public static final int DATA_TE_MAX = 3;
+    public static final int DATA_FLUX = 2;
+    public static final int DATA_FLUX_MAX = 3;
     public static final int DATA_ME_NEXT = 4;
-    public static final int DATA_TE_NEXT = 5;
+    public static final int DATA_FLUX_NEXT = 5;
     public static final int DATA_PROGRESS = 6;
     public static final int DATA_TOTAL = 7;
     public static final int DATA_AXIS = 8;
     public static final int DATA_ME_REFUSAL = 9;
-    public static final int DATA_TE_REFUSAL = 10;
+    public static final int DATA_FLUX_REFUSAL = 10;
     public static final int DATA_STRESS = 11;
     public static final int DATA_COPY_RUNS = 12;
     public static final int DATA_COPY_MAX = 13;
@@ -76,7 +79,12 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
     public static final int DATA_PRESSING = 16;
     public static final int DATA_PRESS_PROGRESS = 17;
     public static final int DATA_PRESS_TOTAL = 18;
-    public static final int DATA_COUNT = 19;
+    public static final int DATA_POTENCY = 19;
+    public static final int DATA_POTENCY_MAX = 20;
+    public static final int DATA_POTENCY_NEXT = 21;
+    public static final int DATA_POTENCY_REFUSAL = 22;
+    public static final int DATA_SPEED = 23;
+    public static final int DATA_COUNT = 24;
     private static final String MATERIALS_TAG = "Materials";
     private static final String RESEARCH_AXIS_TAG = "ResearchAxis";
 
@@ -117,6 +125,49 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         super(BFBlocks.PROJECT_BUREAU_ENTITY.get(), pos, state);
     }
 
+    @Override
+    public void addBehaviours(java.util.List<BlockEntityBehaviour> behaviours) {
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (level == null || level.isClientSide) {
+            return;
+        }
+        tickServer();
+    }
+
+    @Override
+    public float calculateStressApplied() {
+        float applied = appliedStress();
+        this.lastStressApplied = applied;
+        return applied;
+    }
+
+    private boolean shaftTurns() {
+        return Math.abs(getSpeed()) > 0.0F;
+    }
+
+    private float appliedStress() {
+        if (researchAxis != null) {
+            return profile().map(profile -> (float) profile.stressPerStep()).orElse(0.0F);
+        }
+        if (copying) {
+            return profile().map(profile -> (float) profile.copyStress()).orElse(0.0F);
+        }
+        if (assembling && assemblyId != null) {
+            return AssemblyRegistry.get(assemblyId).map(recipe -> (float) recipe.stress()).orElse(0.0F);
+        }
+        return 0.0F;
+    }
+
+    private void refreshStress() {
+        if (level != null && !level.isClientSide && hasNetwork()) {
+            getOrCreateNetwork().updateStressFor(this, calculateStressApplied());
+        }
+    }
+
     /**
      * The document slot takes an issued original or a copy that still has runs. Blanks, fragments, ancient
      * blueprints, spent copies and creative templates stay out.
@@ -146,9 +197,8 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
     }
 
     /**
-     * Starts one ME or TE step. Materials stay in the slots until the step finishes. A copy is refused unless the
-     * profile allows it. At the ceiling or without the items, nothing is taken. The table does not need a motor:
-     * the step lasts {@code time_per_step_ticks} game ticks.
+     * Starts one ME, Flux or Potency step. Materials stay in the slots until the step finishes.
+     * The step lasts {@code time_per_step_ticks} game ticks and only advances while the shaft turns.
      */
     public ResearchRefusal tryStart(ResearchAxis axis, Player player) {
         ResearchRefusal refusal = refusal(axis);
@@ -163,6 +213,7 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         researchPlayer = player.getUUID();
         researchPlayerName = player.getName().getString();
         setChanged();
+        refreshStress();
         return ResearchRefusal.OK;
     }
 
@@ -188,19 +239,20 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         if (definition == null) {
             return ResearchRefusal.NO_PROFILE;
         }
-        BlueprintDefinition.EfficiencyRange range = axis == ResearchAxis.MATERIAL
-                ? definition.materialEfficiencyOrFixed()
-                : definition.timeEfficiencyOrFixed();
-        int current = axis == ResearchAxis.MATERIAL ? data.materialEfficiency() : data.timeEfficiency();
+        BlueprintDefinition.EfficiencyRange range = definition.range(axis);
+        int current = axisValue(data, axis);
         if (EfficiencyMath.nextStep(current, range.max(), range.step()).isEmpty()) {
             return ResearchRefusal.AT_CAP;
         }
-        List<BlueprintDefinition.CostEntry> cost = axis == ResearchAxis.MATERIAL ? profile.meStepCost() : profile.teStepCost();
+        List<BlueprintDefinition.CostEntry> cost = axisCost(profile, definition, axis);
         if (ResearchPayment.hasFluid(cost)) {
             return ResearchRefusal.FLUID_COST;
         }
         if (!ResearchPayment.covers(cost, ResearchPayment.tally(materialStacks()))) {
             return ResearchRefusal.MISSING_COST;
+        }
+        if (!shaftTurns()) {
+            return ResearchRefusal.NO_ROTATION;
         }
         return ResearchRefusal.OK;
     }
@@ -223,10 +275,6 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         };
     }
 
-    public static void serverTick(Level level, BlockPos pos, BlockState state, ProjectBureauBlockEntity bureau) {
-        bureau.tickServer();
-    }
-
     private void tickServer() {
         if (level == null || level.isClientSide) {
             return;
@@ -241,6 +289,9 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         }
         if (refusalWhileRunning() != ResearchRefusal.OK) {
             cancelResearch();
+            return;
+        }
+        if (!shaftTurns()) {
             return;
         }
         researchProgress++;
@@ -281,14 +332,12 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         if (definition == null) {
             return ResearchRefusal.NO_PROFILE;
         }
-        BlueprintDefinition.EfficiencyRange range = researchAxis == ResearchAxis.MATERIAL
-                ? definition.materialEfficiencyOrFixed()
-                : definition.timeEfficiencyOrFixed();
-        int current = researchAxis == ResearchAxis.MATERIAL ? data.materialEfficiency() : data.timeEfficiency();
+        BlueprintDefinition.EfficiencyRange range = definition.range(researchAxis);
+        int current = axisValue(data, researchAxis);
         if (EfficiencyMath.nextStep(current, range.max(), range.step()).isEmpty()) {
             return ResearchRefusal.AT_CAP;
         }
-        List<BlueprintDefinition.CostEntry> cost = cost(profile, researchAxis);
+        List<BlueprintDefinition.CostEntry> cost = cost(profile, definition, researchAxis);
         if (ResearchPayment.hasFluid(cost) || !ResearchPayment.covers(cost, ResearchPayment.tally(materialStacks()))) {
             return ResearchRefusal.MISSING_COST;
         }
@@ -304,26 +353,26 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
             cancelResearch();
             return;
         }
-        BlueprintDefinition.EfficiencyRange range = axis == ResearchAxis.MATERIAL
-                ? definition.materialEfficiencyOrFixed()
-                : definition.timeEfficiencyOrFixed();
-        int current = axis == ResearchAxis.MATERIAL ? data.materialEfficiency() : data.timeEfficiency();
+        BlueprintDefinition.EfficiencyRange range = definition.range(axis);
+        int current = axisValue(data, axis);
         int next = EfficiencyMath.nextStep(current, range.max(), range.step()).orElse(-1);
-        List<BlueprintDefinition.CostEntry> cost = cost(profile, axis);
+        List<BlueprintDefinition.CostEntry> cost = cost(profile, definition, axis);
         if (next < 0 || !consume(cost)) {
             cancelResearch();
             return;
         }
         int me = axis == ResearchAxis.MATERIAL ? next : data.materialEfficiency();
-        int te = axis == ResearchAxis.TIME ? next : data.timeEfficiency();
+        int flux = axis == ResearchAxis.FLUX ? next : data.flux();
+        int potency = axis == ResearchAxis.POTENCY ? next : data.potency();
         researchAxis = null;
         researchProgress = 0;
         researchTotal = 0;
         ItemStack updated = getDocument().copy();
-        updated.set(BFComponents.BLUEPRINT.get(), data.withResearch(me, te,
+        updated.set(BFComponents.BLUEPRINT.get(), data.withResearch(me, flux, potency,
                 Optional.ofNullable(researchPlayer), Optional.ofNullable(researchPlayerName)));
         blueprintSlot.setStackInSlot(0, updated);
         setChanged();
+        refreshStress();
     }
 
     private void cancelResearch() {
@@ -332,6 +381,7 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         researchTotal = 0;
         researchInstance = null;
         setChanged();
+        refreshStress();
     }
 
     private boolean consume(List<BlueprintDefinition.CostEntry> cost) {
@@ -361,8 +411,39 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         return BlueprintItem.data(getDocument()).flatMap(data -> ResearchRegistry.forBlueprint(data.definitionId()));
     }
 
-    private static List<BlueprintDefinition.CostEntry> cost(ResearchProfile profile, ResearchAxis axis) {
-        return axis == ResearchAxis.MATERIAL ? profile.meStepCost() : profile.teStepCost();
+    private static List<BlueprintDefinition.CostEntry> cost(ResearchProfile profile, BlueprintDefinition definition, ResearchAxis axis) {
+        return scaled(axisCost(profile, definition, axis), 1.0);
+    }
+
+    public static List<BlueprintDefinition.CostEntry> axisCost(ResearchProfile profile, BlueprintDefinition definition, ResearchAxis axis) {
+        List<BlueprintDefinition.CostEntry> base = switch (axis) {
+            case MATERIAL -> profile.meStepCost();
+            case FLUX -> profile.fluxStepCost();
+            case POTENCY -> profile.potencyStepCost();
+        };
+        return scaled(base, definition.range(axis).costMultiplier());
+    }
+
+    private static List<BlueprintDefinition.CostEntry> scaled(List<BlueprintDefinition.CostEntry> cost, double multiplier) {
+        if (multiplier == 1.0) {
+            return cost;
+        }
+        List<BlueprintDefinition.CostEntry> scaled = new ArrayList<>();
+        for (BlueprintDefinition.CostEntry entry : cost) {
+            int amount = (int) Math.ceil(entry.amount() * multiplier - 1.0E-9);
+            if (amount > 0) {
+                scaled.add(new BlueprintDefinition.CostEntry(entry.itemOrFluid(), amount));
+            }
+        }
+        return scaled;
+    }
+
+    private static int axisValue(BlueprintData data, ResearchAxis axis) {
+        return switch (axis) {
+            case MATERIAL -> data.materialEfficiency();
+            case FLUX -> data.flux();
+            case POTENCY -> data.potency();
+        };
     }
 
     private List<ItemStack> materialStacks() {
@@ -377,24 +458,27 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         BlueprintData data = BlueprintItem.data(getDocument()).orElse(null);
         BlueprintDefinition definition = data == null ? null : BlueprintRegistry.get(data.definitionId()).orElse(null);
         int me = data == null ? 0 : data.materialEfficiency();
-        int te = data == null ? 0 : data.timeEfficiency();
+        int flux = data == null ? 0 : data.flux();
+        int potency = data == null ? 0 : data.potency();
         int meMax = definition == null ? 0 : definition.materialEfficiencyOrFixed().max();
-        int teMax = definition == null ? 0 : definition.timeEfficiencyOrFixed().max();
+        int fluxMax = definition == null ? 0 : definition.fluxOrFixed().max();
+        int potencyMax = definition == null ? 0 : definition.potencyOrFixed().max();
         int meStep = definition == null ? 0 : definition.materialEfficiencyOrFixed().step();
-        int teStep = definition == null ? 0 : definition.timeEfficiencyOrFixed().step();
+        int fluxStep = definition == null ? 0 : definition.fluxOrFixed().step();
+        int potencyStep = definition == null ? 0 : definition.potencyOrFixed().step();
         return switch (index) {
             case DATA_ME -> me;
             case DATA_ME_MAX -> meMax;
-            case DATA_TE -> te;
-            case DATA_TE_MAX -> teMax;
+            case DATA_FLUX -> flux;
+            case DATA_FLUX_MAX -> fluxMax;
             case DATA_ME_NEXT -> EfficiencyMath.nextStep(me, meMax, meStep).orElse(-1);
-            case DATA_TE_NEXT -> EfficiencyMath.nextStep(te, teMax, teStep).orElse(-1);
+            case DATA_FLUX_NEXT -> EfficiencyMath.nextStep(flux, fluxMax, fluxStep).orElse(-1);
             case DATA_PROGRESS -> researchProgress;
             case DATA_TOTAL -> researchTotal;
             case DATA_AXIS -> researchAxis == null ? 0 : researchAxis.ordinal() + 1;
             case DATA_ME_REFUSAL -> refusal(ResearchAxis.MATERIAL).ordinal();
-            case DATA_TE_REFUSAL -> refusal(ResearchAxis.TIME).ordinal();
-            case DATA_STRESS -> 0;
+            case DATA_FLUX_REFUSAL -> refusal(ResearchAxis.FLUX).ordinal();
+            case DATA_STRESS -> (int) appliedStress();
             case DATA_COPY_RUNS -> selectedRuns;
             case DATA_COPY_MAX -> copyRules(data).map(BlueprintDefinition.CopyRules::maxRuns).orElse(1);
             case DATA_COPY_REFUSAL -> getDocument().isEmpty() ? assemblyRefusal().ordinal() : copyRefusal().ordinal();
@@ -402,6 +486,11 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
             case DATA_PRESSING -> isWorking() ? 1 : 0;
             case DATA_PRESS_PROGRESS -> operationProgress();
             case DATA_PRESS_TOTAL -> operationTotal();
+            case DATA_POTENCY -> potency;
+            case DATA_POTENCY_MAX -> potencyMax;
+            case DATA_POTENCY_NEXT -> EfficiencyMath.nextStep(potency, potencyMax, potencyStep).orElse(-1);
+            case DATA_POTENCY_REFUSAL -> refusal(ResearchAxis.POTENCY).ordinal();
+            case DATA_SPEED -> Math.round(Math.abs(getSpeed()));
             default -> 0;
         };
     }
@@ -477,14 +566,14 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
         writeContents(tag, registries);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
         readContents(tag, registries);
     }
 
@@ -522,7 +611,7 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
 
     @Override
     public Component getDisplayName() {
-        return Component.translatable("block.blueprintforge.project_bureau");
+        return Component.translatable("block.blueprintforge.blueprint_laboratory");
     }
 
     @Override
@@ -661,6 +750,7 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         copyPlayerName = player.getName().getString();
         selectedRuns = runs;
         setChanged();
+        refreshStress();
         return ArchiveRefusal.OK;
     }
 
@@ -696,6 +786,9 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         if (!ResearchPayment.covers(cost, ResearchPayment.tally(materialStacks()))) {
             return ArchiveRefusal.MISSING_COST;
         }
+        if (!shaftTurns()) {
+            return ArchiveRefusal.NO_ROTATION;
+        }
         return ArchiveRefusal.OK;
     }
 
@@ -713,6 +806,7 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         jobProgress = 0;
         jobTotal = Math.max(1, match.getValue().processTimeTicks());
         setChanged();
+        refreshStress();
         return ArchiveRefusal.OK;
     }
 
@@ -739,6 +833,9 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         if (ResearchPayment.hasFluid(match.getValue().extraIngredients())) {
             return ArchiveRefusal.FLUID_COST;
         }
+        if (!shaftTurns()) {
+            return ArchiveRefusal.NO_ROTATION;
+        }
         return ArchiveRefusal.OK;
     }
 
@@ -754,6 +851,9 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
             }
         } else if (!getDocument().isEmpty()) {
             cancelJob(true);
+            return;
+        }
+        if (!shaftTurns()) {
             return;
         }
         jobProgress++;
@@ -775,14 +875,15 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         }
         int runs = EfficiencyMath.clampRuns(selectedRuns, rules.maxRuns());
         int me = EfficiencyMath.penalized(data.materialEfficiency(), rules.mePenalty());
-        int te = EfficiencyMath.penalized(data.timeEfficiency(), rules.tePenalty());
+        int flux = EfficiencyMath.penalized(data.flux(), rules.fluxPenalty());
         ItemStack copy = new ItemStack(BFItems.BLUEPRINT.get());
-        copy.set(BFComponents.BLUEPRINT.get(), data.printedCopy(UUID.randomUUID(), runs, me, te,
+        copy.set(BFComponents.BLUEPRINT.get(), data.printedCopy(UUID.randomUUID(), runs, me, flux, data.potency(),
                 Optional.ofNullable(copyPlayer), Optional.ofNullable(copyPlayerName)));
         reserved.clear();
         copying = false;
         output.setStackInSlot(0, copy);
         setChanged();
+        refreshStress();
     }
 
     private void finishAssembly() {
@@ -807,6 +908,7 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
         }
         assemblyId = null;
         setChanged();
+        refreshStress();
     }
 
     private void cancelJob(boolean refund) {
@@ -822,6 +924,7 @@ public class ProjectBureauBlockEntity extends BlockEntity implements MenuProvide
             reserved.clear();
         }
         setChanged();
+        refreshStress();
     }
 
     private boolean reserve(List<BlueprintDefinition.CostEntry> cost) {

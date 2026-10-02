@@ -16,9 +16,13 @@ import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.registry.BFItems;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -28,6 +32,8 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 /** MVP tooltip: document class and tier on blueprints, tier and source on forged items. */
 @EventBusSubscriber(modid = BlueprintForge.MOD_ID, value = Dist.CLIENT)
 public final class TooltipHandler {
+    private static final TagKey<Item> HIDE_T0 = TagKey.create(Registries.ITEM, BlueprintForge.id("hide_t0"));
+
     private TooltipHandler() {
     }
 
@@ -38,7 +44,7 @@ public final class TooltipHandler {
         int insertAt = Math.min(1, lines.size());
 
         if (stack.is(BFItems.BLUEPRINT.get())) {
-            lines.addAll(insertAt, blueprintLines(stack));
+            lines.addAll(insertAt, blueprintLines(stack, event));
             return;
         }
         ForgedItemData forged = stack.get(BFComponents.FORGED.get());
@@ -48,10 +54,43 @@ public final class TooltipHandler {
                     .orElseGet(() -> Component.translatable("item.blueprintforge.blueprint.unknown"));
             lines.add(insertAt, Component.translatable("tooltip.blueprintforge.forged", tierName(forged.tierId()), source)
                     .withStyle(ChatFormatting.GRAY));
+            return;
+        }
+        markVanillaTarget(stack, lines, insertAt);
+    }
+
+    private static void markVanillaTarget(ItemStack stack, List<Component> lines, int insertAt) {
+        if (stack.is(HIDE_T0)) {
+            return;
+        }
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        boolean visible = false;
+        for (var entry : BlueprintRegistry.all().entrySet()) {
+            if (entry.getValue().hideT0() || entry.getValue().target().isEmpty()) {
+                continue;
+            }
+            if (entry.getValue().target().get().equals(itemId)) {
+                visible = true;
+                break;
+            }
+        }
+        if (visible) {
+            lines.add(insertAt, Component.translatable("tooltip.blueprintforge.t0").withStyle(ChatFormatting.GRAY));
         }
     }
 
-    private static List<Component> blueprintLines(ItemStack stack) {
+    private static MutableComponent foundLine(BlueprintData data, ItemTooltipEvent event) {
+        if (data.foundGameTime() <= 0 || event.getEntity() == null || event.getEntity().level() == null) {
+            return Component.translatable("tooltip.blueprintforge.found_unknown");
+        }
+        long age = event.getEntity().level().getGameTime() - data.foundGameTime();
+        if (age < 24000L) {
+            return Component.translatable("tooltip.blueprintforge.found_today");
+        }
+        return Component.translatable("tooltip.blueprintforge.found_days", age / 24000L);
+    }
+
+    private static List<Component> blueprintLines(ItemStack stack, ItemTooltipEvent event) {
         BlueprintData data = BlueprintItem.data(stack).orElse(null);
         if (data == null) {
             return List.of(Component.translatable("tooltip.blueprintforge.blank").withStyle(ChatFormatting.GRAY));
@@ -68,8 +107,9 @@ public final class TooltipHandler {
             lines.add(Component.translatable("tooltip.blueprintforge.production").withStyle(ChatFormatting.GRAY));
         }
         lines.add(Component.translatable("tooltip.blueprintforge.tier", tierName(data.tierId())).withStyle(ChatFormatting.GRAY));
-        lines.add(Component.translatable("tooltip.blueprintforge.efficiency", data.materialEfficiency(), data.timeEfficiency())
+        lines.add(Component.translatable("tooltip.blueprintforge.efficiency", data.materialEfficiency(), data.flux(), data.potency())
                 .withStyle(ChatFormatting.GRAY));
+        lines.add(foundLine(data, event).withStyle(ChatFormatting.GRAY));
         BlueprintRegistry.get(data.definitionId()).flatMap(def -> def.target()).ifPresent(target ->
                 lines.add(Component.translatable("tooltip.blueprintforge.target", target.toString()).withStyle(ChatFormatting.GRAY)));
         data.researcherName().ifPresent(name ->

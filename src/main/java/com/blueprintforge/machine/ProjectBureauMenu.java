@@ -91,7 +91,11 @@ public class ProjectBureauMenu extends AbstractContainerMenu {
             return true;
         }
         if (id == 1) {
-            bureau.tryStart(ResearchAxis.TIME, player);
+            bureau.tryStart(ResearchAxis.FLUX, player);
+            return true;
+        }
+        if (id == 6) {
+            bureau.tryStart(ResearchAxis.POTENCY, player);
             return true;
         }
         if (id == 2) {

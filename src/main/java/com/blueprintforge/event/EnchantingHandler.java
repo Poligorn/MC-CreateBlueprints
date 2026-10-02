@@ -8,8 +8,6 @@ import com.blueprintforge.data.TierRegistry;
 import com.blueprintforge.logic.EnchantPolicy;
 import com.blueprintforge.registry.BFComponents;
 
-import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -24,8 +22,6 @@ import net.minecraft.world.inventory.EnchantmentMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
-import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.block.EnchantingTableBlock;
 import net.neoforged.bus.api.IEventBus;
@@ -75,45 +71,6 @@ public final class EnchantingHandler {
                 stack.is(Items.BOOK) || stack.is(Items.ENCHANTED_BOOK), tierNumber);
     }
 
-    /** Item enchantments, or the stored enchantments of a book. */
-    public static ItemEnchantments enchantmentsOf(ItemStack stack) {
-        ItemEnchantments stored = stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
-        ItemEnchantments applied = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
-        if (stored.isEmpty()) {
-            return applied;
-        }
-        if (applied.isEmpty()) {
-            return stored;
-        }
-        ItemEnchantments.Mutable merged = new ItemEnchantments.Mutable(stored);
-        for (Holder<Enchantment> enchantment : applied.keySet()) {
-            merged.set(enchantment, Math.max(merged.getLevel(enchantment), applied.getLevel(enchantment)));
-        }
-        return merged.toImmutable();
-    }
-
-    /** True when combining the two stacks would put an enchantment above {@code cap}. A plain repair is false. */
-    public static boolean resultExceedsCap(ItemStack left, ItemStack right, int cap) {
-        ItemEnchantments incoming = enchantmentsOf(right);
-        if (incoming.isEmpty()) {
-            return false;
-        }
-        ItemEnchantments present = enchantmentsOf(left);
-        for (Holder<Enchantment> enchantment : incoming.keySet()) {
-            int rightLevel = incoming.getLevel(enchantment);
-            if (rightLevel <= 0) {
-                continue;
-            }
-            int leftLevel = present.getLevel(enchantment);
-            int max = enchantment.value().getMaxLevel();
-            int result = leftLevel == rightLevel && rightLevel < max ? rightLevel + 1 : Math.max(leftLevel, rightLevel);
-            if (result > cap) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         if (event.getLevel().isClientSide() || !(event.getLevel().getBlockState(event.getPos()).getBlock() instanceof EnchantingTableBlock)) {
             return;
@@ -122,9 +79,8 @@ public final class EnchantingHandler {
         EnchantPolicy.Verdict verdict;
         if (mode == EnchantPolicy.Mode.FULL) {
             verdict = EnchantPolicy.Verdict.DENY_FULL;
-        } else if (mode == EnchantPolicy.Mode.RESTRICTED && !event.getItemStack().isEmpty()) {
-            verdict = verdict(event.getItemStack());
-        } else if (mode == EnchantPolicy.Mode.SCALED && !event.getItemStack().isEmpty()) {
+        } else if ((mode == EnchantPolicy.Mode.RESTRICTED || mode == EnchantPolicy.Mode.SCALED)
+                && !event.getItemStack().isEmpty()) {
             verdict = verdict(event.getItemStack());
         } else {
             return;
@@ -139,12 +95,6 @@ public final class EnchantingHandler {
     private static void onEnchantmentLevelSet(EnchantmentLevelSetEvent event) {
         EnchantPolicy.Mode mode = BFConfig.enchantingMode();
         if (mode == EnchantPolicy.Mode.OFF) {
-            return;
-        }
-        if (mode == EnchantPolicy.Mode.SCALED) {
-            if (EnchantPolicy.levelCap(EnchantPolicy.tierNumber(tierIdOf(event.getItem()))) <= 0) {
-                event.setEnchantLevel(0);
-            }
             return;
         }
         EnchantPolicy.Verdict verdict = verdict(event.getItem());
@@ -164,14 +114,6 @@ public final class EnchantingHandler {
     private static void onAnvilUpdate(AnvilUpdateEvent event) {
         EnchantPolicy.Mode mode = BFConfig.enchantingMode();
         if (mode == EnchantPolicy.Mode.OFF) {
-            return;
-        }
-        if (mode == EnchantPolicy.Mode.SCALED) {
-            int cap = EnchantPolicy.levelCap(EnchantPolicy.tierNumber(tierIdOf(event.getLeft())));
-            if (resultExceedsCap(event.getLeft(), event.getRight(), cap)) {
-                event.setCanceled(true);
-                notifyCap(event.getPlayer(), cap);
-            }
             return;
         }
         if (!EnchantmentHelper.hasAnyEnchantments(event.getRight())) {
@@ -207,12 +149,4 @@ public final class EnchantingHandler {
         }
     }
 
-    private static void notifyCap(Player player, int cap) {
-        if (player instanceof ServerPlayer serverPlayer) {
-            Component message = cap <= 0
-                    ? Component.translatable("message.blueprintforge.enchanting.scaled_none")
-                    : Component.translatable("message.blueprintforge.enchanting.scaled", cap);
-            serverPlayer.displayClientMessage(message, true);
-        }
-    }
 }

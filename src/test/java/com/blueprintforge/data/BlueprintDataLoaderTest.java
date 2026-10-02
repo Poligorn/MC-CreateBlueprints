@@ -80,7 +80,7 @@ class BlueprintDataLoaderTest {
         Map<ResourceLocation, JsonElement> researchJson = new TreeMap<>();
         research.forEach((k, v) -> researchJson.put(k, json(v)));
         BlueprintDataLoader.RawData raw = new BlueprintDataLoader.RawData(
-                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, researchJson, Map.of(), new ArrayList<>());
+                Map.of(TIERS_FILE, json(TIERS)), blueprintJson, sourceJson, researchJson, Map.of(), Map.of(), Map.of(), new ArrayList<>());
         return BlueprintDataLoader.load(raw, JsonOps.INSTANCE, ITEMS);
     }
 
@@ -152,18 +152,18 @@ class BlueprintDataLoaderTest {
     }
 
     @Test
-    void tierLabelsAreT1ThroughT5InBothLanguages() throws Exception {
+    void tierNicknamesExistInBothLanguages() throws Exception {
         String en = new String(BlueprintDataLoaderTest.class.getResourceAsStream("/assets/blueprintforge/lang/en_us.json").readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         String ru = new String(BlueprintDataLoaderTest.class.getResourceAsStream("/assets/blueprintforge/lang/ru_ru.json").readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        String[] english = {"Handmade", "Crafted", "Industrial", "Guild", "Ancient"};
+        String[] russian = {"Кустарный", "Ремесленный", "Промышленный", "Артельный", "Древний"};
         for (int number = 1; number <= 5; number++) {
-            String line = "\"tier.blueprintforge.tier" + number + "\": \"T" + number + "\"";
-            assertTrue(en.contains(line), line);
-            assertTrue(ru.contains(line), line);
+            String enLine = "\"tier.blueprintforge.tier" + number + "\": \"" + english[number - 1] + "\"";
+            String ruLine = "\"tier.blueprintforge.tier" + number + "\": \"" + russian[number - 1] + "\"";
+            assertTrue(en.contains(enLine), enLine);
+            assertTrue(ru.contains(ruLine), ruLine);
+            assertFalse(en.contains("\"tier.blueprintforge.tier" + number + "\": \"T" + number + "\""));
         }
-        assertFalse(en.contains("Crafted"));
-        assertFalse(ru.contains("Ремесленный"));
-        assertFalse(en.contains("Handmade"));
-        assertFalse(ru.contains("Кустарный"));
     }
 
     @Test
@@ -245,7 +245,7 @@ class BlueprintDataLoaderTest {
     @Test
     void blueprintComponentRoundTrips() {
         BlueprintData data = new BlueprintData(UUID.randomUUID(), id("guild_blade"), BlueprintClass.COPY, id("tier2"),
-                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), 7, 20, 30,
+                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), 7, 20, 30, 2, 0L,
                 Optional.of(UUID.randomUUID()), Optional.of("Engineer"), Optional.empty(), Optional.empty(),
                 Optional.of(UUID.randomUUID()), Optional.of("Owner"), Optional.of(new CompoundTag()));
         JsonElement encoded = BlueprintData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow();
@@ -260,18 +260,19 @@ class BlueprintDataLoaderTest {
     @Test
     void issuingATemplateSetsANewInstanceAndOwnerOnly() {
         BlueprintData template = new BlueprintData(BlueprintData.UNISSUED, id("guild_blade"), BlueprintClass.ORIGINAL, id("tier2"),
-                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), -1, 0, 0,
+                Optional.of(ResourceLocation.withDefaultNamespace("iron_sword")), -1, 0, 0, 0, 0L,
                 Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
         assertTrue(template.isUnissued());
 
         UUID instance = UUID.randomUUID();
         UUID owner = UUID.randomUUID();
-        BlueprintData issued = template.issuedTo(instance, Optional.of(owner), Optional.of("Dev"));
+        BlueprintData issued = template.issuedTo(instance, Optional.of(owner), Optional.of("Dev"), 1000L);
         assertFalse(issued.isUnissued());
         assertEquals(instance, issued.instanceId());
         assertEquals(Optional.of(owner), issued.ownerUuid());
         assertEquals(Optional.of("Dev"), issued.ownerName());
-        assertEquals(template, issued.issuedTo(BlueprintData.UNISSUED, Optional.empty(), Optional.empty()));
+        assertEquals(1000L, issued.foundGameTime());
+        assertEquals(template, issued.issuedTo(BlueprintData.UNISSUED, Optional.empty(), Optional.empty(), 0L));
     }
 
     @Test

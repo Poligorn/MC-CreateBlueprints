@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "blueprintforge:block/blueprint_laboratory" }
+  }
+}

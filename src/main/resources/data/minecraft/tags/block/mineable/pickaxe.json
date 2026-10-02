@@ -1,3 +1,3 @@
 {
-  "values": ["blueprintforge:blueprint_archive", "blueprintforge:project_bureau"]
+  "values": ["blueprintforge:blueprint_archive", "blueprintforge:blueprint_laboratory", "blueprintforge:blueprint_dock"]
 }

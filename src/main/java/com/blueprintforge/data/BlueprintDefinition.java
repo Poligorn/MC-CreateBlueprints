@@ -25,13 +25,17 @@ public record BlueprintDefinition(
         Optional<ResourceLocation> target,
         Output output,
         Optional<EfficiencyRange> materialEfficiency,
-        Optional<EfficiencyRange> timeEfficiency,
+        Optional<EfficiencyRange> flux,
+        Optional<EfficiencyRange> potency,
         Optional<CopyRules> copy,
         boolean namesOutput,
         Optional<Integer> fittingSlots,
         Display display,
         Optional<List<TooltipFlag>> tooltipFlags,
-        List<ResourceLocation> tags
+        List<ResourceLocation> tags,
+        boolean hideT0,
+        List<PotencyGrant> potencyOutput,
+        Optional<ResourceLocation> line
 ) {
     public static final String DEFAULT_TIER_NAMESPACE = "blueprintforge";
 
@@ -45,13 +49,17 @@ public record BlueprintDefinition(
             ResourceLocation.CODEC.optionalFieldOf("target").forGetter(BlueprintDefinition::target),
             Output.CODEC.optionalFieldOf("output", Output.EMPTY).forGetter(BlueprintDefinition::output),
             EfficiencyRange.CODEC.optionalFieldOf("material_efficiency").forGetter(BlueprintDefinition::materialEfficiency),
-            EfficiencyRange.CODEC.optionalFieldOf("time_efficiency").forGetter(BlueprintDefinition::timeEfficiency),
+            EfficiencyRange.CODEC.optionalFieldOf("flux").forGetter(BlueprintDefinition::flux),
+            EfficiencyRange.CODEC.optionalFieldOf("potency").forGetter(BlueprintDefinition::potency),
             CopyRules.CODEC.optionalFieldOf("copy").forGetter(BlueprintDefinition::copy),
             Codec.BOOL.optionalFieldOf("names_output", false).forGetter(BlueprintDefinition::namesOutput),
             Codec.intRange(0, 16).optionalFieldOf("fitting_slots").forGetter(BlueprintDefinition::fittingSlots),
             Display.CODEC.fieldOf("display").forGetter(BlueprintDefinition::display),
             TooltipFlag.CODEC.listOf().optionalFieldOf("tooltip_flags").forGetter(BlueprintDefinition::tooltipFlags),
-            ResourceLocation.CODEC.listOf().fieldOf("tags").forGetter(BlueprintDefinition::tags)
+            ResourceLocation.CODEC.listOf().fieldOf("tags").forGetter(BlueprintDefinition::tags),
+            Codec.BOOL.optionalFieldOf("hide_t0", false).forGetter(BlueprintDefinition::hideT0),
+            PotencyGrant.CODEC.listOf().optionalFieldOf("potency_output", List.of()).forGetter(BlueprintDefinition::potencyOutput),
+            ResourceLocation.CODEC.optionalFieldOf("line").forGetter(BlueprintDefinition::line)
     ).apply(i, BlueprintDefinition::new)).validate(BlueprintDefinition::validate);
 
     private static DataResult<BlueprintDefinition> validate(BlueprintDefinition def) {
@@ -72,8 +80,20 @@ public record BlueprintDefinition(
         return materialEfficiency.orElse(EfficiencyRange.FIXED_ZERO);
     }
 
-    public EfficiencyRange timeEfficiencyOrFixed() {
-        return timeEfficiency.orElse(EfficiencyRange.FIXED_ZERO);
+    public EfficiencyRange fluxOrFixed() {
+        return flux.orElse(EfficiencyRange.FIXED_ZERO);
+    }
+
+    public EfficiencyRange potencyOrFixed() {
+        return potency.orElse(EfficiencyRange.FIXED_ZERO);
+    }
+
+    public EfficiencyRange range(com.blueprintforge.logic.ResearchAxis axis) {
+        return switch (axis) {
+            case MATERIAL -> materialEfficiencyOrFixed();
+            case FLUX -> fluxOrFixed();
+            case POTENCY -> potencyOrFixed();
+        };
     }
 
     public record Output(List<OutputModifier> attributes, double durabilityMultiplier, int count) {
@@ -86,13 +106,18 @@ public record BlueprintDefinition(
         ).apply(i, Output::new));
     }
 
-    public record EfficiencyRange(int min, int max, int step) {
+    public record EfficiencyRange(int min, int max, int step, double costMultiplier) {
+        public EfficiencyRange(int min, int max, int step) {
+            this(min, max, step, 1.0);
+        }
+
         public static final EfficiencyRange FIXED_ZERO = new EfficiencyRange(0, 0, 0);
 
         public static final Codec<EfficiencyRange> CODEC = RecordCodecBuilder.<EfficiencyRange>create(i -> i.group(
                 Codec.intRange(0, 100).fieldOf("min").forGetter(EfficiencyRange::min),
                 Codec.intRange(0, 100).fieldOf("max").forGetter(EfficiencyRange::max),
-                Codec.intRange(0, 100).fieldOf("step").forGetter(EfficiencyRange::step)
+                Codec.intRange(0, 100).fieldOf("step").forGetter(EfficiencyRange::step),
+                Codec.doubleRange(0.0, 100.0).optionalFieldOf("cost_multiplier", 1.0).forGetter(EfficiencyRange::costMultiplier)
         ).apply(i, EfficiencyRange::new)).validate(r -> {
             if (r.min > r.max) {
                 return DataResult.error(() -> "min " + r.min + " is greater than max " + r.max);
@@ -109,7 +134,7 @@ public record BlueprintDefinition(
             int defaultRuns,
             int maxRuns,
             int mePenalty,
-            int tePenalty,
+            int fluxPenalty,
             List<CostEntry> copyCost,
             double costScaling,
             boolean allowFromCopy
@@ -119,7 +144,7 @@ public record BlueprintDefinition(
                 Codec.intRange(1, Integer.MAX_VALUE).fieldOf("default_runs").forGetter(CopyRules::defaultRuns),
                 Codec.intRange(1, Integer.MAX_VALUE).fieldOf("max_runs").forGetter(CopyRules::maxRuns),
                 Codec.intRange(0, 100).optionalFieldOf("me_penalty", 10).forGetter(CopyRules::mePenalty),
-                Codec.intRange(0, 100).optionalFieldOf("te_penalty", 10).forGetter(CopyRules::tePenalty),
+                Codec.intRange(0, 100).optionalFieldOf("flux_penalty", 10).forGetter(CopyRules::fluxPenalty),
                 CostEntry.CODEC.listOf().fieldOf("copy_cost").forGetter(CopyRules::copyCost),
                 Codec.doubleRange(1.0, 16.0).fieldOf("cost_scaling").forGetter(CopyRules::costScaling),
                 Codec.BOOL.optionalFieldOf("allow_from_copy", false).forGetter(CopyRules::allowFromCopy)
@@ -162,9 +187,25 @@ public record BlueprintDefinition(
         ).apply(i, Display::new));
     }
 
+    /** One researched potency level and the enchantments the line writes at that level. */
+    public record PotencyGrant(int level, List<EnchantGrant> enchantments) {
+        public static final Codec<PotencyGrant> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.intRange(0, 100).fieldOf("level").forGetter(PotencyGrant::level),
+                EnchantGrant.CODEC.listOf().optionalFieldOf("enchantments", List.of()).forGetter(PotencyGrant::enchantments)
+        ).apply(i, PotencyGrant::new));
+    }
+
+    public record EnchantGrant(ResourceLocation enchantment, int level) {
+        public static final Codec<EnchantGrant> CODEC = RecordCodecBuilder.create(i -> i.group(
+                ResourceLocation.CODEC.fieldOf("id").forGetter(EnchantGrant::enchantment),
+                Codec.intRange(1, 255).fieldOf("level").forGetter(EnchantGrant::level)
+        ).apply(i, EnchantGrant::new));
+    }
+
     public enum TooltipFlag implements StringRepresentable {
         SHOW_RUNS("show_runs"),
         SHOW_ME_TE("show_me_te"),
+        SHOW_AXES("show_axes"),
         SHOW_TARGET("show_target"),
         SHOW_AUTHOR("show_author");
 

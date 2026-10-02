@@ -84,28 +84,19 @@ class EnchantPolicyTest {
     }
 
     @Test
-    void scaledCapsEnchantmentLevelByTierAndIgnoresTags() {
+    void scaledUsesTheRestrictedRules() {
         assertEquals(0, EnchantPolicy.levelCap(EnchantPolicy.tierNumber(null)));
-        assertEquals(-1, EnchantPolicy.tierNumber(ResourceLocation.fromNamespaceAndPath("blueprintforge", "handmade")));
-        assertEquals(0, EnchantPolicy.levelCap(0));
-        assertEquals(1, EnchantPolicy.levelCap(1));
-        assertEquals(1, EnchantPolicy.levelCap(2));
-        assertEquals(2, EnchantPolicy.levelCap(3));
-        assertEquals(3, EnchantPolicy.levelCap(4));
-        assertEquals(4, EnchantPolicy.levelCap(5));
-        assertEquals(0, EnchantPolicy.levelCap(6));
         assertEquals(2, EnchantPolicy.tierNumber(ResourceLocation.fromNamespaceAndPath("othermod", "tier2")));
-
-        Subject vanilla = new Subject(Forged.NONE, true, false, false, -1);
-        Subject tier2 = new Subject(Forged.BLUEPRINT_TIER, false, true, false, 2);
+        Subject vanilla = new Subject(Forged.NONE, false, false, false, -1);
+        Subject tier2 = new Subject(Forged.BLUEPRINT_TIER, false, false, false, 2);
+        Subject allowedTier2 = new Subject(Forged.BLUEPRINT_TIER, true, false, false, 2);
         Subject book = new Subject(Forged.NONE, false, false, true, -1);
-        assertEquals(Verdict.DENY_SCALED, EnchantPolicy.evaluate(Mode.SCALED, false, vanilla));
-        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.SCALED, false, tier2));
-        assertEquals(Verdict.DENY_SCALED, EnchantPolicy.evaluate(Mode.SCALED, false, book));
+        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.SCALED, false, vanilla));
+        assertEquals(Verdict.DENY_RESTRICTED, EnchantPolicy.evaluate(Mode.SCALED, false, tier2));
+        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.SCALED, false, allowedTier2));
+        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.SCALED, false, book));
+        assertEquals(Verdict.DENY_BOOKS, EnchantPolicy.evaluate(Mode.SCALED, true, book));
         assertFalse(EnchantPolicy.booksDisabled(Mode.SCALED, false));
-        assertEquals(1, EnchantPolicy.clampedOfferLevel(4, 1, 1));
-        assertEquals(0, EnchantPolicy.clampedOfferLevel(4, 1, 0));
-        assertEquals(0, EnchantPolicy.clampedOfferLevel(1, 2, 1));
     }
 
     @Test

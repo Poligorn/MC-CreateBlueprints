@@ -23,6 +23,7 @@ import com.blueprintforge.data.TierRegistry;
 import com.blueprintforge.item.BlueprintItem;
 import com.blueprintforge.logic.EfficiencyMath;
 import com.blueprintforge.logic.EnchantPolicy;
+import com.blueprintforge.logic.ResearchAxis;
 import com.blueprintforge.registry.BFComponents;
 
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -89,8 +90,9 @@ public final class ViewerCatalog {
             if (definition.clazz() == BlueprintClass.COPY && !profile.allowResearchOnCopy()) {
                 continue;
             }
-            addStep(steps, entry.getKey(), definition, profile.meStepCost(), true);
-            addStep(steps, entry.getKey(), definition, profile.teStepCost(), false);
+            addStep(steps, entry.getKey(), definition, profile, ResearchAxis.MATERIAL);
+            addStep(steps, entry.getKey(), definition, profile, ResearchAxis.FLUX);
+            addStep(steps, entry.getKey(), definition, profile, ResearchAxis.POTENCY);
         }
         return List.copyOf(steps);
     }
@@ -118,17 +120,17 @@ public final class ViewerCatalog {
             ItemStack original = document(entry.getKey(), definition);
             BlueprintData data = BlueprintItem.data(original).orElseThrow();
             int me = EfficiencyMath.penalized(data.materialEfficiency(), rules.mePenalty());
-            int te = EfficiencyMath.penalized(data.timeEfficiency(), rules.tePenalty());
+            int flux = EfficiencyMath.penalized(data.flux(), rules.fluxPenalty());
             ItemStack copy = original.copy();
             copy.set(BFComponents.BLUEPRINT.get(), data.printedCopy(
-                    stable(entry.getKey() + "/copy"), rules.defaultRuns(), me, te, Optional.empty(), Optional.empty()));
+                    stable(entry.getKey() + "/copy"), rules.defaultRuns(), me, flux, data.potency(), Optional.empty(), Optional.empty()));
             prints.add(new CopyPrint(
                     recipeId("copy/" + slug(entry.getKey())),
                     original,
                     itemCosts(rules.copyCost(), rules.defaultRuns(), rules.defaultRuns(), rules.costScaling(), true),
                     copy,
                     Component.translatable("gui.blueprintforge.viewer.copy_line",
-                            rules.defaultRuns(), rules.mePenalty(), rules.tePenalty())));
+                            rules.defaultRuns(), rules.mePenalty(), rules.fluxPenalty())));
         }
         return List.copyOf(prints);
     }
@@ -181,38 +183,59 @@ public final class ViewerCatalog {
             case OFF -> List.of();
             case RESTRICTED -> List.of(Component.translatable("gui.blueprintforge.viewer.enchant_restricted"));
             case FULL -> List.of(Component.translatable("gui.blueprintforge.viewer.enchant_full"));
-            case SCALED -> List.of(Component.translatable("gui.blueprintforge.viewer.enchant_scaled"));
+            case SCALED -> List.of(Component.translatable("gui.blueprintforge.viewer.enchant_restricted"));
         };
     }
 
     private static void addStep(List<ResearchStep> steps, ResourceLocation blueprintId, BlueprintDefinition definition,
-                                List<BlueprintDefinition.CostEntry> cost, boolean material) {
+                                ResearchProfile profile, ResearchAxis axis) {
+        List<BlueprintDefinition.CostEntry> cost = switch (axis) {
+            case MATERIAL -> profile.meStepCost();
+            case FLUX -> profile.fluxStepCost();
+            case POTENCY -> profile.potencyStepCost();
+        };
+        double multiplier = definition.range(axis).costMultiplier();
+        if (multiplier != 1.0) {
+            List<BlueprintDefinition.CostEntry> scaled = new ArrayList<>();
+            for (BlueprintDefinition.CostEntry entry : cost) {
+                int amount = (int) Math.ceil(entry.amount() * multiplier - 1.0E-9);
+                if (amount > 0) {
+                    scaled.add(new BlueprintDefinition.CostEntry(entry.itemOrFluid(), amount));
+                }
+            }
+            cost = scaled;
+        }
         if (hasFluid(cost)) {
             return;
         }
-        BlueprintDefinition.EfficiencyRange range = material
-                ? definition.materialEfficiencyOrFixed()
-                : definition.timeEfficiencyOrFixed();
+        BlueprintDefinition.EfficiencyRange range = definition.range(axis);
         OptionalInt next = EfficiencyMath.nextStep(range.min(), range.max(), range.step());
         if (next.isEmpty()) {
             return;
         }
         ItemStack document = document(blueprintId, definition);
         BlueprintData data = BlueprintItem.data(document).orElseThrow();
-        int me = material ? next.getAsInt() : data.materialEfficiency();
-        int te = material ? data.timeEfficiency() : next.getAsInt();
+        int me = axis == ResearchAxis.MATERIAL ? next.getAsInt() : data.materialEfficiency();
+        int flux = axis == ResearchAxis.FLUX ? next.getAsInt() : data.flux();
+        int potency = axis == ResearchAxis.POTENCY ? next.getAsInt() : data.potency();
         ItemStack result = document.copy();
-        result.set(BFComponents.BLUEPRINT.get(), data.withResearch(me, te, Optional.empty(), Optional.empty()));
-        String axis = material ? "me" : "te";
+        result.set(BFComponents.BLUEPRINT.get(), data.withResearch(me, flux, potency, Optional.empty(), Optional.empty()));
+        String axisName = switch (axis) {
+            case MATERIAL -> "me";
+            case FLUX -> "flux";
+            case POTENCY -> "potency";
+        };
+        String key = switch (axis) {
+            case MATERIAL -> "gui.blueprintforge.viewer.step_me";
+            case FLUX -> "gui.blueprintforge.viewer.step_flux";
+            case POTENCY -> "gui.blueprintforge.viewer.step_potency";
+        };
         steps.add(new ResearchStep(
-                recipeId("research/" + slug(blueprintId) + "_" + axis),
+                recipeId("research/" + slug(blueprintId) + "_" + axisName),
                 document,
                 itemCosts(cost, 1, 1, 1.0, false),
                 result,
-                Component.translatable(material
-                                ? "gui.blueprintforge.viewer.step_me"
-                                : "gui.blueprintforge.viewer.step_te",
-                        range.min(), next.getAsInt(), range.max())));
+                Component.translatable(key, range.min(), next.getAsInt(), range.max())));
     }
 
     private static @Nullable Component enchantLine(EnchantPolicy.Mode mode, ResourceLocation tierId) {
@@ -224,10 +247,8 @@ public final class ViewerCatalog {
                 yield requiresBlueprint ? Component.translatable("gui.blueprintforge.viewer.tier_no_table") : null;
             }
             case SCALED -> {
-                int cap = EnchantPolicy.levelCap(EnchantPolicy.tierNumber(tierId));
-                yield cap <= 0
-                        ? Component.translatable("gui.blueprintforge.viewer.enchant_scaled_none")
-                        : Component.translatable("gui.blueprintforge.viewer.enchant_scaled_cap", cap);
+                boolean requiresBlueprint = TierRegistry.get(tierId).map(TierDefinition::requiresBlueprint).orElse(true);
+                yield requiresBlueprint ? Component.translatable("gui.blueprintforge.viewer.tier_no_table") : null;
             }
         };
     }

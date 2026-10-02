@@ -4,19 +4,29 @@
   "target": "minecraft:iron_sword",
   "output": {
     "attributes": [
-      { "attribute": "minecraft:generic.attack_damage", "mode": "multiply_total", "value": 0.15, "slot": "mainhand" }
+      { "attribute": "minecraft:generic.attack_damage", "mode": "multiply_total", "value": 0.18, "slot": "mainhand" }
     ],
-    "durability_multiplier": 1.0,
+    "durability_multiplier": 1.15,
     "count": 1
   },
   "material_efficiency": { "min": 0, "max": 30, "step": 3 },
-  "time_efficiency": { "min": 0, "max": 40, "step": 5 },
+  "flux": { "min": 0, "max": 80, "step": 10 },
+  "potency": { "min": 0, "max": 3, "step": 1 },
+  "potency_output": [
+    { "level": 1, "enchantments": [{ "id": "minecraft:sharpness", "level": 1 }] },
+    { "level": 2, "enchantments": [{ "id": "minecraft:sharpness", "level": 2 }] },
+    { "level": 3, "enchantments": [
+      { "id": "minecraft:sharpness", "level": 2 },
+      { "id": "minecraft:unbreaking", "level": 1 }
+    ]}
+  ],
+  "line": "blueprintforge:guild_blade",
   "copy": {
     "enabled": true,
     "default_runs": 10,
     "max_runs": 50,
     "me_penalty": 10,
-    "te_penalty": 10,
+    "flux_penalty": 10,
     "copy_cost": [
       { "item": "minecraft:paper", "count": 8 },
       { "item": "minecraft:ink_sac", "count": 2 }

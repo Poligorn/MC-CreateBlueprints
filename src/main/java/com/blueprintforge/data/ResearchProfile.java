@@ -9,14 +9,15 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * One {@code blueprint_research} file: the price of an ME step and a TE step for the blueprints it names.
- * {@code copyTimePerRunTicks} is one printed run, in Create {@code processingTime} units.
- * {@code copyStress} is applied only while a copy is being printed.
+ * One {@code blueprint_research} file: the price of an ME, Flux or Potency step.
+ * {@code copyTimePerRunTicks} is one printed run, in game ticks, and only advances while the shaft turns.
+ * Stress is applied only while a step, a copy or an assembly is running.
  */
 public record ResearchProfile(
         List<AppliesTo> appliesTo,
         List<BlueprintDefinition.CostEntry> meStepCost,
-        List<BlueprintDefinition.CostEntry> teStepCost,
+        List<BlueprintDefinition.CostEntry> fluxStepCost,
+        List<BlueprintDefinition.CostEntry> potencyStepCost,
         int stressPerStep,
         int timePerStepTicks,
         boolean allowResearchOnCopy,
@@ -26,7 +27,8 @@ public record ResearchProfile(
     public static final Codec<ResearchProfile> CODEC = RecordCodecBuilder.<ResearchProfile>create(i -> i.group(
             AppliesTo.CODEC.listOf().fieldOf("applies_to").forGetter(ResearchProfile::appliesTo),
             BlueprintDefinition.CostEntry.CODEC.listOf().optionalFieldOf("me_step_cost", List.of()).forGetter(ResearchProfile::meStepCost),
-            BlueprintDefinition.CostEntry.CODEC.listOf().optionalFieldOf("te_step_cost", List.of()).forGetter(ResearchProfile::teStepCost),
+            BlueprintDefinition.CostEntry.CODEC.listOf().optionalFieldOf("flux_step_cost", List.of()).forGetter(ResearchProfile::fluxStepCost),
+            BlueprintDefinition.CostEntry.CODEC.listOf().optionalFieldOf("potency_step_cost", List.of()).forGetter(ResearchProfile::potencyStepCost),
             Codec.intRange(0, 1_000_000).fieldOf("stress_per_step").forGetter(ResearchProfile::stressPerStep),
             Codec.intRange(1, 1_000_000).fieldOf("time_per_step_ticks").forGetter(ResearchProfile::timePerStepTicks),
             Codec.BOOL.optionalFieldOf("allow_research_on_copy", false).forGetter(ResearchProfile::allowResearchOnCopy),
