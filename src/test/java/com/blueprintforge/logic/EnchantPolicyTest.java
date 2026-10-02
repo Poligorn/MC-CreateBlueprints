@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.resources.ResourceLocation;
+
 import com.blueprintforge.logic.EnchantPolicy.Forged;
 import com.blueprintforge.logic.EnchantPolicy.Mode;
 import com.blueprintforge.logic.EnchantPolicy.Subject;
@@ -23,6 +25,7 @@ class EnchantPolicyTest {
         assertEquals(Mode.RESTRICTED, Mode.parse("restricted").orElseThrow());
         assertEquals(Mode.OFF, Mode.parse("off").orElseThrow());
         assertEquals(Mode.FULL, Mode.parse("FULL").orElseThrow());
+        assertEquals(Mode.SCALED, Mode.parse("scaled").orElseThrow());
         assertTrue(Mode.parse("strict").isEmpty());
     }
 
@@ -78,6 +81,22 @@ class EnchantPolicyTest {
         assertFalse(EnchantPolicy.booksDisabled(Mode.RESTRICTED, false));
         assertTrue(EnchantPolicy.booksDisabled(Mode.RESTRICTED, true));
         assertFalse(EnchantPolicy.booksDisabled(Mode.OFF, false));
+    }
+
+    @Test
+    void scaledUsesTheRestrictedRules() {
+        assertEquals(0, EnchantPolicy.levelCap(EnchantPolicy.tierNumber(null)));
+        assertEquals(2, EnchantPolicy.tierNumber(ResourceLocation.fromNamespaceAndPath("othermod", "tier2")));
+        Subject vanilla = new Subject(Forged.NONE, false, false, false, -1);
+        Subject tier2 = new Subject(Forged.BLUEPRINT_TIER, false, false, false, 2);
+        Subject allowedTier2 = new Subject(Forged.BLUEPRINT_TIER, true, false, false, 2);
+        Subject book = new Subject(Forged.NONE, false, false, true, -1);
+        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.SCALED, false, vanilla));
+        assertEquals(Verdict.DENY_RESTRICTED, EnchantPolicy.evaluate(Mode.SCALED, false, tier2));
+        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.SCALED, false, allowedTier2));
+        assertEquals(Verdict.ALLOW, EnchantPolicy.evaluate(Mode.SCALED, false, book));
+        assertEquals(Verdict.DENY_BOOKS, EnchantPolicy.evaluate(Mode.SCALED, true, book));
+        assertFalse(EnchantPolicy.booksDisabled(Mode.SCALED, false));
     }
 
     @Test

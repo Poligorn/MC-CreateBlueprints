@@ -2,10 +2,12 @@ package com.blueprintforge.gametest;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
 
 import com.blueprintforge.BFConfig;
+import com.blueprintforge.compat.viewer.ViewerCatalog;
 import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.data.BlueprintClass;
 import com.blueprintforge.data.BlueprintData;
@@ -15,15 +17,20 @@ import com.blueprintforge.data.BlueprintRegistry;
 import com.blueprintforge.data.ForgedItemData;
 import com.blueprintforge.data.TierRegistry;
 import com.blueprintforge.item.BlueprintItem;
-import com.blueprintforge.logic.EfficiencyMath;
+import com.blueprintforge.logic.ArchiveRefusal;
+import com.blueprintforge.logic.EnchantPolicy;
 import com.blueprintforge.logic.ResearchAxis;
 import com.blueprintforge.logic.ResearchRefusal;
+import com.blueprintforge.data.LineMark;
+import com.blueprintforge.data.StampData;
+import com.blueprintforge.logic.LineProduction;
 import com.blueprintforge.machine.BlueprintArchiveBlockEntity;
+import com.blueprintforge.machine.BlueprintDockBlockEntity;
+import com.blueprintforge.machine.ProjectBureauBlockEntity;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
 import com.simibubi.create.AllBlocks;
 import com.blueprintforge.event.CreativeIssueHandler;
-import com.blueprintforge.machine.BlueprintArchiveBlock;
 import com.blueprintforge.registry.BFCreativeTabs;
 import com.blueprintforge.registry.BFItems;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
@@ -41,6 +48,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
@@ -117,96 +125,94 @@ public final class BlueprintForgeGameTests {
     private static final BlockPos BELT_START = new BlockPos(0, 1, 2);
     private static final BlockPos BELT_END = new BlockPos(4, 1, 2);
     private static final BlockPos ARCHIVE = new BlockPos(2, 2, 2);
+    private static final BlockPos BUREAU = new BlockPos(2, 2, 4);
 
-    /**
-     * A straight five-block belt along X with the Archive standing over its middle segment, like a Create tunnel.
-     * Optionally a creative motor drives the belt pulley, and another one sits on the Archive roof.
-     */
-    private static BlueprintArchiveBlockEntity archiveOnBelt(GameTestHelper helper, boolean driveBelt, boolean driveArchive) {
+    private static BlueprintArchiveBlockEntity placeArchive(GameTestHelper helper) {
+        helper.setBlock(ARCHIVE, BFBlocks.BLUEPRINT_ARCHIVE.get().defaultBlockState());
+        return helper.getBlockEntity(ARCHIVE);
+    }
+
+    private static ProjectBureauBlockEntity placeLab(GameTestHelper helper) {
+        helper.setBlock(BUREAU, BFBlocks.PROJECT_BUREAU.get().defaultBlockState());
+        return helper.getBlockEntity(BUREAU);
+    }
+
+    private static void withShaft(GameTestHelper helper, java.util.function.Consumer<ProjectBureauBlockEntity> next) {
+        ProjectBureauBlockEntity lab = placeLab(helper);
+        helper.setBlock(BUREAU.above(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.DOWN));
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(Math.abs(lab.getSpeed()) > 1.0F, "laboratory shaft is turning, speed=" + lab.getSpeed());
+            next.accept(lab);
+        });
+    }
+
+    @GameTest(template = EMPTY)
+    public static void archiveStandsWithoutABeltAndKeepsItsDocument(GameTestHelper helper) {
+        helper.setBlock(ARCHIVE.below(), Blocks.STONE);
+        BlueprintArchiveBlockEntity be = placeArchive(helper);
+        UUID uuid = UUID.randomUUID();
+        helper.assertTrue(be.getDocumentSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
+        helper.destroyBlock(ARCHIVE.below());
+        helper.assertBlockPresent(BFBlocks.BLUEPRINT_ARCHIVE.get(), ARCHIVE);
+        helper.assertTrue(BlueprintItem.data(be.getDocument()).map(d -> d.instanceId().equals(uuid)).orElse(false),
+                "removing the block below does not break the archive or its document");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 40)
+    public static void laboratoryDoesNotStartWithoutAShaft(GameTestHelper helper) {
+        ProjectBureauBlockEntity lab = placeLab(helper);
+        lab.getBlueprintSlot().insertItem(0, guildBladeOriginal(UUID.randomUUID()), false);
+        lab.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(lab.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.NO_ROTATION, "a stopped shaft does not start");
+        helper.assertTrue(lab.getMaterials().getStackInSlot(0).getCount() == 4, "iron is not spent");
+        helper.assertTrue(!lab.isWorking(), "the laboratory stays idle");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 600)
+    public static void beltDoesNotForgeASword(GameTestHelper helper) {
         BlockState shaft = AllBlocks.SHAFT.getDefaultState().setValue(BlockStateProperties.AXIS, Direction.Axis.Z);
         helper.setBlock(BELT_START, shaft);
         helper.setBlock(BELT_END, shaft);
         BeltConnectorItem.createBelts(helper.getLevel(), helper.absolutePos(BELT_START), helper.absolutePos(BELT_END));
-        if (driveBelt) {
-            helper.setBlock(BELT_START.north(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.SOUTH));
-        }
-        helper.setBlock(ARCHIVE, BFBlocks.BLUEPRINT_ARCHIVE.get().defaultBlockState().setValue(BlueprintArchiveBlock.AXIS, Direction.Axis.X));
-        if (driveArchive) {
-            helper.setBlock(ARCHIVE.above(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.DOWN));
-        }
-        return helper.getBlockEntity(ARCHIVE);
-    }
-
-    @GameTest(template = EMPTY)
-    public static void archiveStandsOnlyOnAStraightBeltAlongItsAxis(GameTestHelper helper) {
-        archiveOnBelt(helper, false, false);
-        ServerLevel level = helper.getLevel();
-        BlockState alongBelt = BFBlocks.BLUEPRINT_ARCHIVE.get().defaultBlockState().setValue(BlueprintArchiveBlock.AXIS, Direction.Axis.X);
-        BlockState acrossBelt = alongBelt.setValue(BlueprintArchiveBlock.AXIS, Direction.Axis.Z);
-        helper.assertTrue(alongBelt.canSurvive(level, helper.absolutePos(ARCHIVE)), "archive stands on the belt along its axis");
-        helper.assertFalse(acrossBelt.canSurvive(level, helper.absolutePos(ARCHIVE)), "archive must follow the belt axis");
-        helper.assertTrue(BlueprintArchiveBlock.beltAxisBelow(level, helper.absolutePos(ARCHIVE)) == Direction.Axis.X, "belt below runs along X");
-
-        helper.setBlock(new BlockPos(2, 1, 4), Blocks.STONE);
-        helper.assertFalse(alongBelt.canSurvive(level, helper.absolutePos(new BlockPos(2, 2, 4))), "archive needs a belt below");
-        helper.succeed();
-    }
-
-    @GameTest(template = EMPTY)
-    public static void archiveTurnsFromAShaftThroughTheRoof(GameTestHelper helper) {
-        archiveOnBelt(helper, false, true);
-        helper.succeedWhen(() -> {
-            BlueprintArchiveBlockEntity be = helper.getBlockEntity(ARCHIVE);
-            helper.assertTrue(be.getSpeed() != 0, "archive must receive rotation from the shaft above, speed=" + be.getSpeed());
-        });
-    }
-
-    @GameTest(template = EMPTY)
-    public static void archiveDoesNotTakeRotationFromTheBelt(GameTestHelper helper) {
-        archiveOnBelt(helper, true, false);
-        helper.runAfterDelay(20, () -> {
-            BeltBlockEntity belt = BeltHelper.getSegmentBE(helper.getLevel(), helper.absolutePos(ARCHIVE.below()));
-            helper.assertTrue(belt != null && belt.getSpeed() != 0, "the belt itself must run");
-            BlueprintArchiveBlockEntity be = helper.getBlockEntity(ARCHIVE);
-            helper.assertTrue(be.getSpeed() == 0, "the Archive is powered only through its roof");
-            helper.succeed();
-        });
-    }
-
-    @GameTest(template = EMPTY, timeoutTicks = 600)
-    public static void beltCarriesItemsThroughTheArchive(GameTestHelper helper) {
-        archiveOnBelt(helper, true, true);
-        // Belt positions count from the controller end; the ingot starts on the segment before the Archive.
+        helper.setBlock(BELT_START.north(), AllBlocks.CREATIVE_MOTOR.getDefaultState().setValue(BlockStateProperties.FACING, Direction.SOUTH));
+        ProjectBureauBlockEntity bureau = placeLab(helper);
+        UUID uuid = UUID.randomUUID();
+        helper.assertTrue(bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
         float[] direction = new float[1];
         helper.runAfterDelay(20, () -> {
             BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
             helper.assertTrue(controller != null && controller.getDirectionAwareBeltMovementSpeed() != 0, "belt must be running");
             direction[0] = Math.signum(controller.getDirectionAwareBeltMovementSpeed());
-            TransportedItemStack item = new TransportedItemStack(new ItemStack(Items.IRON_INGOT));
+            TransportedItemStack item = new TransportedItemStack(new ItemStack(Items.IRON_SWORD));
             item.beltPosition = direction[0] > 0 ? 0.5F : controller.beltLength - 0.5F;
             controller.getInventory().addItem(item);
         });
         helper.succeedWhen(() -> {
-            helper.assertTrue(direction[0] != 0, "ingot not placed yet");
+            helper.assertTrue(direction[0] != 0, "sword not placed yet");
             BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
-            float archiveSegmentCenter = controller.beltLength / 2.0F;
-            List<TransportedItemStack> onBelt = controller.getInventory().getTransportedItems().stream()
-                    .filter(stack -> stack.stack.is(Items.IRON_INGOT)).toList();
-            boolean pastArchive = onBelt.stream()
-                    .anyMatch(stack -> (stack.beltPosition - archiveSegmentCenter) * direction[0] > 1.0F);
-            boolean ejectedAtFarEnd = onBelt.isEmpty() && !helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                    new AABB(helper.absolutePos(ARCHIVE)).inflate(6), entity -> entity.getItem().is(Items.IRON_INGOT)).isEmpty();
-            helper.assertTrue(pastArchive || ejectedAtFarEnd, "the ingot must travel under the Archive and past it");
+            float center = controller.beltLength / 2.0F;
+            boolean plainPast = controller.getInventory().getTransportedItems().stream().anyMatch(stack ->
+                    stack.stack.is(Items.IRON_SWORD) && stack.stack.get(BFComponents.FORGED.get()) == null
+                            && (stack.beltPosition - center) * direction[0] > 1.0F);
+            boolean ejectedPlain = controller.getInventory().getTransportedItems().stream().noneMatch(stack -> stack.stack.is(Items.IRON_SWORD))
+                    && !helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BELT_END)).inflate(4),
+                    entity -> entity.getItem().is(Items.IRON_SWORD) && entity.getItem().get(BFComponents.FORGED.get()) == null).isEmpty();
+            helper.assertTrue(plainPast || ejectedPlain, "a sword on the belt stays an unforged iron sword");
+            helper.assertTrue(BlueprintItem.data(bureau.getDocument()).map(d -> d.isOriginal() && d.instanceId().equals(uuid)).orElse(false),
+                    "the original stays in the bureau");
         });
     }
 
     @GameTest(template = EMPTY)
     public static void archiveKeepsOneDocumentAcrossSaveAndDropsItWhenBroken(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity be = archiveOnBelt(helper, false, false);
+        BlueprintArchiveBlockEntity be = placeArchive(helper);
         UUID uuid = UUID.randomUUID();
 
-        helper.assertTrue(be.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
-        helper.assertFalse(be.getBlueprintSlot().insertItem(0, guildBladeOriginal(UUID.randomUUID()), false).isEmpty(),
+        helper.assertTrue(be.getDocumentSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
+        helper.assertFalse(be.getDocumentSlot().insertItem(0, guildBladeOriginal(UUID.randomUUID()), false).isEmpty(),
                 "a second document must not fit");
 
         ServerLevel level = helper.getLevel();
@@ -222,18 +228,6 @@ public final class BlueprintForgeGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = EMPTY)
-    public static void removingTheBeltBreaksTheArchiveAndDropsTheDocument(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity be = archiveOnBelt(helper, false, false);
-        UUID uuid = UUID.randomUUID();
-        be.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
-
-        helper.destroyBlock(ARCHIVE.below());
-        helper.succeedWhen(() -> {
-            helper.assertBlockNotPresent(BFBlocks.BLUEPRINT_ARCHIVE.get(), ARCHIVE);
-            assertSingleDroppedOriginal(helper, uuid);
-        });
-    }
 
     private static void assertSingleDroppedOriginal(GameTestHelper helper, UUID uuid) {
         List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, ARCHIVE, 3.0).stream()
@@ -245,18 +239,18 @@ public final class BlueprintForgeGameTests {
 
     @GameTest(template = EMPTY)
     public static void archiveRejectsBlanksFragmentsTemplatesAndOtherItems(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity be = archiveOnBelt(helper, false, false);
+        BlueprintArchiveBlockEntity be = placeArchive(helper);
 
         ItemStack fragment = guildBladeOriginal(UUID.randomUUID());
         BlueprintData data = BlueprintItem.data(fragment).orElseThrow();
         fragment.set(BFComponents.BLUEPRINT.get(), new BlueprintData(data.instanceId(), data.definitionId(), BlueprintClass.FRAGMENT,
-                data.tierId(), data.target(), 1, 0, 0, data.researcherUuid(), data.researcherName(), data.copierUuid(),
+                data.tierId(), data.target(), 1, 0, 0, 0, 0L, data.researcherUuid(), data.researcherName(), data.copierUuid(),
                 data.copierName(), data.ownerUuid(), data.ownerName(), data.roll()));
         ItemStack template = guildBladeOriginal(BlueprintData.UNISSUED);
 
         ItemStack spentCopy = guildBladeCopy(UUID.randomUUID(), 0);
         for (ItemStack stack : List.of(new ItemStack(BFItems.BLUEPRINT.get()), fragment, template, spentCopy, new ItemStack(Items.PAPER))) {
-            helper.assertFalse(be.getBlueprintSlot().insertItem(0, stack, false).isEmpty(), "must reject " + stack);
+            helper.assertFalse(be.getDocumentSlot().insertItem(0, stack, false).isEmpty(), "must reject " + stack);
         }
         helper.assertTrue(be.getDocument().isEmpty(), "slot stays empty");
         helper.succeed();
@@ -386,52 +380,192 @@ public final class BlueprintForgeGameTests {
         ItemStack stack = guildBladeOriginal(uuid);
         BlueprintData data = BlueprintItem.data(stack).orElseThrow();
         stack.set(BFComponents.BLUEPRINT.get(), new BlueprintData(data.instanceId(), data.definitionId(), BlueprintClass.COPY,
-                data.tierId(), data.target(), runs, data.materialEfficiency(), data.timeEfficiency(),
+                data.tierId(), data.target(), runs, data.materialEfficiency(), data.flux(), data.potency(), data.foundGameTime(),
                 data.researcherUuid(), data.researcherName(), data.copierUuid(), data.copierName(),
                 data.ownerUuid(), data.ownerName(), data.roll()));
         return stack;
     }
 
-    private static void placeOnBelt(GameTestHelper helper, ItemStack stack) {
-        BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
-        helper.assertTrue(controller != null && controller.getInventory() != null && controller.getDirectionAwareBeltMovementSpeed() != 0,
-                "belt must be running before an item is placed");
-        float direction = Math.signum(controller.getDirectionAwareBeltMovementSpeed());
-        TransportedItemStack transported = new TransportedItemStack(stack);
-        transported.beltPosition = direction > 0 ? 0.5F : controller.beltLength - 0.5F;
-        controller.getInventory().addItem(transported);
+    @GameTest(template = EMPTY, timeoutTicks = 400)
+    public static void laboratoryResearchesMaterialEfficiencyAndKeepsTheOriginal(GameTestHelper helper) {
+        withShaft(helper, bureau -> {
+            UUID uuid = UUID.randomUUID();
+            helper.assertTrue(bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
+            helper.assertTrue(bureau.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false).isEmpty(), "iron must fit");
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.OK, "the ME step must start");
+            helper.assertTrue(bureau.isWorking(), "the laboratory is researching");
+            helper.assertTrue(bureau.operationTotal() == 100, "duration is 100 game ticks");
+            helper.assertTrue(bureau.calculateStressApplied() == 256.0F, "stress is applied while the step runs");
+            helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 4, "iron stays until the step finishes");
+            helper.succeedWhen(() -> {
+                BlueprintData data = BlueprintItem.data(bureau.getDocument()).orElse(null);
+                helper.assertTrue(data != null && data.materialEfficiency() == 3 && data.flux() == 0 && data.potency() == 0,
+                        "ME advances by one step of 3");
+                helper.assertTrue(data.isOriginal() && data.runsRemaining() == -1 && data.instanceId().equals(uuid), "the original stays");
+                helper.assertTrue(data.researcherUuid().isPresent(), "the player who started the step is recorded");
+                helper.assertTrue(bureau.getMaterials().getStackInSlot(0).isEmpty(), "the four iron are spent when the step finishes");
+                helper.assertTrue(!bureau.isWorking(), "the laboratory is idle when the step ends");
+                helper.assertTrue(bureau.calculateStressApplied() == 0.0F, "stress drops when the step ends");
+                helper.succeed();
+            });
+        });
     }
 
-    private static boolean isPastArchive(GameTestHelper helper, Predicate<ItemStack> match) {
-        BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
-        if (controller == null || controller.getInventory() == null) {
-            return false;
-        }
-        float direction = Math.signum(controller.getDirectionAwareBeltMovementSpeed());
-        float center = controller.beltLength / 2.0F;
-        boolean onBelt = controller.getInventory().getTransportedItems().stream()
-                .anyMatch(stack -> match.test(stack.stack) && (stack.beltPosition - center) * direction > 1.0F);
-        boolean ejected = !helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                new AABB(helper.absolutePos(ARCHIVE)).inflate(8), entity -> match.test(entity.getItem())).isEmpty();
-        return onBelt || ejected;
+    @GameTest(template = EMPTY, timeoutTicks = 400)
+    public static void laboratoryResearchesFluxAndPotency(GameTestHelper helper) {
+        withShaft(helper, bureau -> {
+            UUID uuid = UUID.randomUUID();
+            bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
+            bureau.getMaterials().insertItem(0, new ItemStack(Items.LAPIS_LAZULI, 8), false);
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(bureau.tryStart(ResearchAxis.FLUX, player) == ResearchRefusal.OK, "the flux step must start");
+            helper.succeedWhen(() -> {
+                BlueprintData data = BlueprintItem.data(bureau.getDocument()).orElseThrow();
+                helper.assertTrue(data.flux() == 10 && data.materialEfficiency() == 0 && data.potency() == 0, "flux advances by 10");
+                helper.assertTrue(bureau.getMaterials().getStackInSlot(0).isEmpty(), "the lapis is spent");
+                helper.assertTrue(data.instanceId().equals(uuid) && data.runsRemaining() == -1, "the original is not consumed");
+                helper.succeed();
+            });
+        });
     }
 
-    private static List<ItemStack> stacksAround(GameTestHelper helper, Predicate<ItemStack> match) {
-        List<ItemStack> found = new ArrayList<>();
-        BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
-        if (controller != null && controller.getInventory() != null) {
-            for (TransportedItemStack transported : controller.getInventory().getTransportedItems()) {
-                if (match.test(transported.stack)) {
-                    found.add(transported.stack);
+    @GameTest(template = EMPTY, timeoutTicks = 400)
+    public static void laboratoryResearchesPotency(GameTestHelper helper) {
+        withShaft(helper, bureau -> {
+            bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(UUID.randomUUID()), false);
+            bureau.getMaterials().insertItem(0, new ItemStack(Items.EXPERIENCE_BOTTLE, 4), false);
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(bureau.tryStart(ResearchAxis.POTENCY, player) == ResearchRefusal.OK, "the potency step must start");
+            helper.succeedWhen(() -> {
+                BlueprintData data = BlueprintItem.data(bureau.getDocument()).orElseThrow();
+                helper.assertTrue(data.potency() == 1 && data.flux() == 0, "potency advances by 1");
+                helper.assertTrue(bureau.getMaterials().getStackInSlot(0).isEmpty(), "the bottles are spent");
+                helper.succeed();
+            });
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 80)
+    public static void laboratoryRefusesToResearchACopyOrAShortPayment(GameTestHelper helper) {
+        ProjectBureauBlockEntity bureau = placeLab(helper);
+        UUID uuid = UUID.randomUUID();
+        bureau.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 5), false);
+        bureau.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false);
+        helper.runAfterDelay(1, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.COPY_FORBIDDEN, "a copy is not researched");
+            helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 4, "a refused step does not take the iron");
+            bureau.getBlueprintSlot().setStackInSlot(0, ItemStack.EMPTY);
+            helper.assertTrue(bureau.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
+            bureau.getMaterials().setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 3));
+            helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.MISSING_COST, "three iron do not pay for four");
+            helper.assertTrue(BlueprintItem.data(bureau.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays at the start");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 80)
+    public static void laboratoryDoesNotResearchPastTheCeilingWithoutAShaft(GameTestHelper helper) {
+        ProjectBureauBlockEntity bureau = placeLab(helper);
+        UUID uuid = UUID.randomUUID();
+        ItemStack capped = guildBladeOriginal(uuid);
+        BlueprintData data = BlueprintItem.data(capped).orElseThrow();
+        capped.set(BFComponents.BLUEPRINT.get(), data.withResearch(30, 80, 3, data.researcherUuid(), data.researcherName()));
+        bureau.getBlueprintSlot().insertItem(0, capped, false);
+        bureau.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.AT_CAP, "ME at 30 does not start");
+        helper.assertTrue(bureau.tryStart(ResearchAxis.FLUX, player) == ResearchRefusal.AT_CAP, "flux at 80 does not start");
+        helper.assertTrue(bureau.tryStart(ResearchAxis.POTENCY, player) == ResearchRefusal.AT_CAP, "potency at 3 does not start");
+        helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 4, "a ceiling does not take materials");
+        ItemStack fresh = guildBladeOriginal(UUID.randomUUID());
+        bureau.getBlueprintSlot().setStackInSlot(0, fresh);
+        helper.assertTrue(bureau.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.NO_ROTATION, "a laboratory with no shaft does not start");
+        helper.assertTrue(bureau.getMaterials().getStackInSlot(0).getCount() == 4, "iron is not spent");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 400)
+    public static void laboratoryPrintsACopyForDatapackTicksTimesRuns(GameTestHelper helper) {
+        withShaft(helper, bureau -> {
+        UUID uuid = UUID.randomUUID();
+        ItemStack original = guildBladeOriginal(uuid);
+        BlueprintData seeded = BlueprintItem.data(original).orElseThrow().withResearch(20, 25, 2, Optional.empty(), Optional.empty());
+        original.set(BFComponents.BLUEPRINT.get(), seeded);
+        bureau.getBlueprintSlot().insertItem(0, original, false);
+        bureau.getMaterials().insertItem(0, new ItemStack(Items.PAPER, 8), false);
+        bureau.getMaterials().insertItem(1, new ItemStack(Items.INK_SAC, 2), false);
+        BlueprintDefinition definition = BlueprintRegistry.get(GUILD_BLADE).orElseThrow();
+        BlueprintDefinition.CopyRules rules = definition.copy().orElseThrow();
+        helper.assertTrue(bureau.setCopyRuns(1, ProjectBureauBlockEntity.copyChecksum(rules, 1)), "one run must be quoted");
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(bureau.tryCopy(player) == ArchiveRefusal.OK, "printing must start");
+        helper.assertTrue(bureau.operationTotal() == 80, "one run lasts 80 game ticks, got " + bureau.operationTotal());
+        helper.assertTrue(bureau.isWorking(), "the table is printing");
+        helper.succeedWhen(() -> {
+            ItemStack printed = ItemStack.EMPTY;
+            for (int slot = 0; slot < bureau.getOutput().getSlots(); slot++) {
+                ItemStack stack = bureau.getOutput().getStackInSlot(slot);
+                if (BlueprintItem.data(stack).isPresent()) {
+                    printed = stack;
                 }
             }
-        }
-        for (ItemEntity entity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(ARCHIVE)).inflate(8))) {
-            if (match.test(entity.getItem())) {
-                found.add(entity.getItem());
-            }
-        }
-        return found;
+            BlueprintData copy = BlueprintItem.data(printed).orElse(null);
+            helper.assertTrue(copy != null && copy.clazz() == BlueprintClass.COPY && copy.runsRemaining() == 1,
+                    "one run was printed");
+            helper.assertTrue(!copy.instanceId().equals(uuid), "the copy has its own UUID");
+            helper.assertTrue(copy.materialEfficiency() == 10 && copy.flux() == 15 && copy.potency() == 2,
+                    "ME and flux take the penalty, potency is copied whole");
+            helper.assertTrue(BlueprintItem.data(bureau.getDocument()).map(d -> d.isOriginal() && d.instanceId().equals(uuid)).orElse(false),
+                    "the original stays");
+            helper.assertTrue(!bureau.isWorking(), "the laboratory is idle when printing ends");
+            helper.succeed();
+        });
+        });
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 400)
+    public static void lineStampsAnIngotAndRejectsAFinishedSword(GameTestHelper helper) {
+        BlockPos dockPos = new BlockPos(2, 2, 2);
+        helper.setBlock(dockPos, BFBlocks.BLUEPRINT_DOCK.get().defaultBlockState());
+        BlueprintDockBlockEntity dock = helper.getBlockEntity(dockPos);
+        ItemStack copy = guildBladeCopy(UUID.randomUUID(), 1);
+        copy.set(BFComponents.BLUEPRINT.get(), BlueprintItem.data(copy).orElseThrow().withResearch(30, 0, 1, Optional.empty(), Optional.empty()));
+        helper.assertTrue(dock.getBlueprintSlot().insertItem(0, copy, false).isEmpty(), "copy must fit the dock");
+        dock.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 8), false);
+        ItemStack stamp = new ItemStack(BFItems.BLUEPRINT_STAMP.get());
+        stamp.set(BFComponents.STAMP.get(), new StampData(GUILD_BLADE));
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(dockPos);
+        helper.runAfterDelay(100, () -> {
+            helper.assertTrue(!dock.isSwapping(), "changeover has finished");
+            helper.assertTrue(LineProduction.tryStamp(level, absolute, new ItemStack(Items.IRON_SWORD), stamp).isEmpty(),
+                    "a finished sword is not a line input");
+            helper.assertTrue(dock.getMaterials().getStackInSlot(0).getCount() == 8, "a rejected sword does not spend iron");
+            var marked = LineProduction.tryStamp(level, absolute, new ItemStack(Items.IRON_INGOT), stamp);
+            helper.assertTrue(marked.isPresent(), "an ingot stamps");
+            helper.assertTrue(dock.getMaterials().getStackInSlot(0).getCount() == 6, "ME 30 spends 2 of the 4-iron price");
+            helper.assertTrue(dock.getDocument().isEmpty(), "the last run of a copy is destroyed");
+            ItemStack forged = LineProduction.finish(level, marked.get(), 0.9F);
+            helper.assertTrue(isGuildForged(forged), "the roll forges the target");
+            helper.assertTrue(forged.get(DataComponents.CUSTOM_NAME) == null, "the sword is not renamed");
+            helper.assertTrue(forged.getHoverName().getString().equals(new ItemStack(Items.IRON_SWORD).getHoverName().getString()),
+                    "the iron sword keeps its name");
+            helper.assertTrue(forged.getMaxDamage() == 316, "durability is 250 × 1.10 × 1.15, got " + forged.getMaxDamage());
+            Holder<Enchantment> sharpness = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SHARPNESS);
+            helper.assertTrue(forged.getEnchantmentLevel(sharpness) == 1, "potency 1 writes Sharpness I");
+            helper.assertTrue(LineProduction.finish(level, marked.get(), 0.0F).is(Items.IRON_NUGGET), "a low roll is scrap");
+            ItemStack original = guildBladeOriginal(UUID.randomUUID());
+            helper.assertTrue(dock.getBlueprintSlot().insertItem(0, original, false).isEmpty(), "original must fit");
+            helper.runAfterDelay(100, () -> {
+                var again = LineProduction.tryStamp(level, absolute, new ItemStack(Items.IRON_INGOT), stamp);
+                helper.assertTrue(again.isPresent(), "an original stamps");
+                helper.assertTrue(BlueprintItem.data(dock.getDocument()).orElseThrow().isOriginal(), "the original stays in the dock");
+                helper.assertTrue(dock.getMaterials().getStackInSlot(0).getCount() == 2, "ME 0 spends the full 4 iron");
+                helper.succeed();
+            });
+        });
     }
 
     private static boolean isGuildForged(ItemStack stack) {
@@ -439,241 +573,96 @@ public final class BlueprintForgeGameTests {
         return stack.is(Items.IRON_SWORD) && forged != null && forged.blueprintId().equals(GUILD_BLADE) && forged.tierId().equals(TIER2);
     }
 
-    @GameTest(template = EMPTY, timeoutTicks = 800)
-    public static void archiveRemakesAPlainSwordAndKeepsTheOriginal(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
-        UUID uuid = UUID.randomUUID();
-        helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning, speed=" + archive.getSpeed());
-            placeOnBelt(helper, new ItemStack(Items.IRON_SWORD));
-        });
-        helper.succeedWhen(() -> {
-            helper.assertTrue(isPastArchive(helper, BlueprintForgeGameTests::isGuildForged), "forged sword must leave the tunnel");
-            helper.assertTrue(stacksAround(helper, stack -> stack.is(Items.IRON_SWORD) && !isGuildForged(stack)).isEmpty(),
-                    "the plain sword must be replaced, not duplicated");
-            ItemStack forged = stacksAround(helper, BlueprintForgeGameTests::isGuildForged).getFirst();
-            helper.assertTrue(forged.getCount() == 1, "one sword in, one sword out");
-            helper.assertTrue(forged.getMaxDamage() == 275, "durability is base 250 × tier 1.10, got " + forged.getMaxDamage());
-            ItemAttributeModifiers modifiers = forged.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
-            boolean bonus = modifiers.modifiers().stream().anyMatch(entry ->
-                    entry.modifier().id().getPath().startsWith("forged/generic.attack_damage")
-                            && Math.abs(entry.modifier().amount() - 0.15D) < 1.0E-9
-                            && entry.modifier().operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
-            helper.assertTrue(bonus, "forged sword must carry the blueprint's attack modifier");
-            BlueprintData document = BlueprintItem.data(archive.getDocument()).orElse(null);
-            helper.assertTrue(document != null && document.isOriginal() && document.runsRemaining() == -1
-                    && document.instanceId().equals(uuid), "the original stays in the Archive");
-            helper.succeed();
-        });
+    @GameTest(template = EMPTY)
+    public static void tierNamesAreLabels(GameTestHelper helper) {
+        for (int number = 1; number <= 5; number++) {
+            var tier = TierRegistry.get(BlueprintForge.id("tier" + number)).orElse(null);
+            helper.assertTrue(tier != null, "tier " + number + " must load");
+            helper.assertTrue(tier.display().getContents() instanceof TranslatableContents contents
+                            && contents.getKey().equals("tier.blueprintforge.tier" + number),
+                    "tier " + number + " uses its label key");
+        }
+        helper.assertFalse(BlueprintRegistry.get(GUILD_BLADE).orElseThrow().namesOutput(), "the guild blade does not name its output");
+        helper.succeed();
     }
 
-    @GameTest(template = EMPTY, timeoutTicks = 800)
-    public static void archiveSpendsTheLastCopyRun(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
-        UUID uuid = UUID.randomUUID();
-        helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 1), false).isEmpty(), "a copy with a run must fit");
-        helper.runAfterDelay(20, () -> placeOnBelt(helper, new ItemStack(Items.IRON_SWORD)));
-        helper.succeedWhen(() -> {
-            helper.assertTrue(isPastArchive(helper, BlueprintForgeGameTests::isGuildForged), "the copy's last run must still forge the sword");
-            helper.assertTrue(archive.getDocument().isEmpty(), "the copy is destroyed on its last run");
-            helper.assertTrue(stacksAround(helper, stack -> BlueprintItem.data(stack).map(d -> d.instanceId().equals(uuid)).orElse(false)).isEmpty(),
-                    "the spent copy is not dropped");
-            helper.succeed();
-        });
-    }
-
-    @GameTest(template = EMPTY, timeoutTicks = 600)
-    public static void archiveDoesNotRemakeWithoutRotation(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, false);
-        UUID uuid = UUID.randomUUID();
-        archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(archive.getSpeed() == 0, "this archive has no shaft");
-            placeOnBelt(helper, new ItemStack(Items.IRON_SWORD));
-        });
-        helper.succeedWhen(() -> {
-            helper.assertTrue(isPastArchive(helper, stack -> stack.is(Items.IRON_SWORD) && stack.get(BFComponents.FORGED.get()) == null),
-                    "without rotation the sword passes through unchanged");
-            helper.assertTrue(stacksAround(helper, BlueprintForgeGameTests::isGuildForged).isEmpty(), "an idle Archive must not forge");
-            helper.assertTrue(BlueprintItem.data(archive.getDocument()).map(d -> d.instanceId().equals(uuid) && d.isOriginal()).orElse(false),
-                    "the original is untouched");
-            helper.succeed();
-        });
-    }
-
-    @GameTest(template = EMPTY, timeoutTicks = 800)
-    public static void archiveLetsAStackPass(GameTestHelper helper) {
-        expectPassThrough(helper, new ItemStack(Items.IRON_SWORD, 2),
-                stack -> stack.is(Items.IRON_SWORD) && stack.getCount() == 2 && stack.get(BFComponents.FORGED.get()) == null,
-                "a stack of two must pass through whole");
-    }
-
-    @GameTest(template = EMPTY, timeoutTicks = 800)
-    public static void archiveLetsAnEnchantedSwordPass(GameTestHelper helper) {
-        Holder<Enchantment> sharpness = helper.getLevel().registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
-                .getOrThrow(Enchantments.SHARPNESS);
-        ItemStack enchanted = new ItemStack(Items.IRON_SWORD);
-        enchanted.enchant(sharpness, 1);
-        expectPassThrough(helper, enchanted,
-                stack -> stack.is(Items.IRON_SWORD) && stack.isEnchanted() && stack.get(BFComponents.FORGED.get()) == null,
-                "an enchanted sword must not be reforged");
-    }
-
-    @GameTest(template = EMPTY, timeoutTicks = 800)
-    public static void archiveLetsADamagedSwordPass(GameTestHelper helper) {
-        ItemStack damaged = new ItemStack(Items.IRON_SWORD);
-        damaged.setDamageValue(10);
-        helper.assertTrue(damaged.isDamaged() && damaged.getDamageValue() == 10, "the sword must start damaged");
-        expectPassThrough(helper, damaged,
-                stack -> stack.is(Items.IRON_SWORD) && stack.getDamageValue() == 10 && stack.get(BFComponents.FORGED.get()) == null,
-                "a damaged sword must not be repaired by a remake");
-    }
-
-    private static void expectPassThrough(GameTestHelper helper, ItemStack input, Predicate<ItemStack> stillInput, String message) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
-        UUID uuid = UUID.randomUUID();
-        archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning");
-            placeOnBelt(helper, input);
-        });
-        helper.succeedWhen(() -> {
-            helper.assertTrue(isPastArchive(helper, stillInput), message + "; nearby=" + describeSwords(helper));
-            helper.assertTrue(stacksAround(helper, BlueprintForgeGameTests::isGuildForged).isEmpty(), "unsuitable items are not forged");
-            helper.assertTrue(BlueprintItem.data(archive.getDocument()).map(d -> d.runsRemaining() == -1).orElse(false),
-                    "passing items do not spend the original");
-            helper.succeed();
-        });
-    }
-
-    private static String describeSwords(GameTestHelper helper) {
-        return stacksAround(helper, stack -> stack.is(Items.IRON_SWORD)).stream()
-                .map(stack -> "n=" + stack.getCount()
-                        + " dmg=" + stack.getDamageValue()
-                        + " ench=" + stack.isEnchanted()
-                        + " forged=" + (stack.get(BFComponents.FORGED.get()) != null))
-                .toList()
-                .toString();
-    }
-
-    @GameTest(template = EMPTY, timeoutTicks = 600)
-    public static void breakingTheArchiveMidRemakeDoesNotSpendTheCopy(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
-        UUID uuid = UUID.randomUUID();
-        archive.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 5), false);
-        boolean[] broke = {false};
-        helper.runAfterDelay(20, () -> placeOnBelt(helper, new ItemStack(Items.IRON_SWORD)));
-        helper.succeedWhen(() -> {
-            if (!broke[0]) {
-                BeltBlockEntity controller = BeltHelper.getControllerBE(helper.getLevel(), helper.absolutePos(BELT_START));
-                helper.assertTrue(controller != null && controller.getInventory() != null, "belt not ready");
-                boolean heldPlain = controller.getInventory().getTransportedItems().stream()
-                        .anyMatch(stack -> stack.locked && stack.stack.is(Items.IRON_SWORD) && stack.stack.get(BFComponents.FORGED.get()) == null);
-                helper.assertTrue(heldPlain, "the sword should be held in the tunnel before the break");
-                helper.destroyBlock(ARCHIVE);
-                broke[0] = true;
-            }
-            List<ItemEntity> drops = helper.getEntities(EntityType.ITEM, ARCHIVE, 3.0).stream()
-                    .filter(entity -> BlueprintItem.data(entity.getItem()).map(d -> d.instanceId().equals(uuid)).orElse(false))
-                    .toList();
-            helper.assertTrue(drops.size() == 1, "the copy must drop, got " + drops.size());
-            BlueprintData dropped = BlueprintItem.data(drops.getFirst().getItem()).orElseThrow();
-            helper.assertTrue(dropped.clazz() == BlueprintClass.COPY && dropped.runsRemaining() == 5,
-                    "an interrupted remake must not spend a run, runs=" + dropped.runsRemaining());
-            helper.assertTrue(stacksAround(helper, BlueprintForgeGameTests::isGuildForged).isEmpty(),
-                    "an interrupted remake must not leave a forged sword");
-            helper.succeed();
-        });
-    }
-
-    @GameTest(template = EMPTY, timeoutTicks = 900)
-    public static void archiveResearchesMaterialEfficiencyAndKeepsTheOriginal(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
-        UUID uuid = UUID.randomUUID();
-        helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
-        helper.assertTrue(archive.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false).isEmpty(), "iron must fit");
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning, speed=" + archive.getSpeed());
+    @GameTest(template = EMPTY)
+    public static void scaledEnchantingFollowsTheTierCurve(GameTestHelper helper) {
+        String previous = BFConfig.ENCHANTING_MODE.get();
+        BFConfig.ENCHANTING_MODE.set("scaled");
+        try {
+            helper.assertTrue(BFConfig.enchantingMode() == EnchantPolicy.Mode.SCALED, "mode must be scaled");
+            BlockPos table = new BlockPos(2, 1, 2);
+            helper.setBlock(table, Blocks.ENCHANTING_TABLE);
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.OK, "the ME step must start");
-            helper.assertTrue(archive.calculateStressApplied() == 256.0F, "the step applies the profile stress");
-            helper.assertTrue(archive.getOrCreateNetwork().getActualStressOf(archive) > 0.0F, "the network is charged while researching");
-            int expected = EfficiencyMath.researchTicks(Math.abs(archive.getSpeed()), 400);
-            helper.assertTrue(archive.researchData().get(BlueprintArchiveBlockEntity.DATA_TOTAL) == expected,
-                    "duration is the mixer formula, expected " + expected);
-        });
-        helper.succeedWhen(() -> {
-            BlueprintData data = BlueprintItem.data(archive.getDocument()).orElse(null);
-            helper.assertTrue(data != null && data.materialEfficiency() == 3 && data.timeEfficiency() == 0,
-                    "ME advances by one step of 3, got " + (data == null ? "none" : data.materialEfficiency()));
-            helper.assertTrue(data.isOriginal() && data.runsRemaining() == -1 && data.instanceId().equals(uuid), "the original stays");
-            helper.assertTrue(data.researcherUuid().isPresent(), "the player who started the step is recorded");
-            helper.assertTrue(archive.getMaterials().getStackInSlot(0).isEmpty(), "the four iron are spent when the step finishes");
-            helper.assertTrue(archive.calculateStressApplied() == 0.0F, "an idle Archive adds no stress");
-            helper.succeed();
-        });
+            EnchantmentMenu menu = new EnchantmentMenu(0, player.getInventory(), ContainerLevelAccess.create(helper.getLevel(), helper.absolutePos(table)));
+            menu.getSlot(1).set(new ItemStack(Items.LAPIS_LAZULI, 3));
+            menu.getSlot(0).set(new ItemStack(Items.IRON_SWORD));
+            helper.assertTrue(menu.costs[0] > 0, "a vanilla sword can still be enchanted in scaled");
+            menu.getSlot(0).set(forgedT2Sword());
+            helper.assertTrue(menu.costs[0] == 0, "a forged T2 sword is not enchanted at the table");
+
+            ServerLevel level = helper.getLevel();
+            Holder<Enchantment> sharpness = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SHARPNESS);
+            AnvilMenu anvil = new AnvilMenu(1, player.getInventory(), ContainerLevelAccess.create(level, helper.absolutePos(BlockPos.ZERO)));
+            anvil.getSlot(0).set(forgedT2Sword());
+            anvil.getSlot(1).set(EnchantedBookItem.createForEnchantment(new EnchantmentInstance(sharpness, 1)));
+            helper.assertTrue(anvil.getSlot(2).getItem().isEmpty(), "a forged sword does not take a book");
+            anvil.getSlot(0).set(new ItemStack(Items.IRON_SWORD));
+            helper.assertFalse(anvil.getSlot(2).getItem().isEmpty(), "a vanilla sword can take a book in scaled");
+            ItemStack damaged = new ItemStack(Items.IRON_SWORD);
+            damaged.setDamageValue(20);
+            anvil.getSlot(0).set(damaged);
+            anvil.getSlot(1).set(new ItemStack(Items.IRON_INGOT));
+            helper.assertFalse(anvil.getSlot(2).getItem().isEmpty(), "a repair without enchantments still works");
+        } finally {
+            BFConfig.ENCHANTING_MODE.set(previous);
+        }
+        helper.succeed();
     }
 
-    @GameTest(template = EMPTY, timeoutTicks = 900)
-    public static void archiveResearchesTimeEfficiency(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
-        UUID uuid = UUID.randomUUID();
-        archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false);
-        archive.getMaterials().insertItem(0, new ItemStack(Items.REDSTONE, 8), false);
-        helper.runAfterDelay(20, () -> {
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(archive.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.OK, "the TE step must start");
-        });
-        helper.succeedWhen(() -> {
-            BlueprintData data = BlueprintItem.data(archive.getDocument()).orElseThrow();
-            helper.assertTrue(data.timeEfficiency() == 5 && data.materialEfficiency() == 0, "TE advances by 5 and ME stays");
-            helper.assertTrue(archive.getMaterials().getStackInSlot(0).isEmpty(), "the redstone is spent");
-            helper.assertTrue(data.instanceId().equals(uuid) && data.runsRemaining() == -1, "the original is not consumed");
-            helper.succeed();
-        });
+    private static ItemStack forgedSword(ResourceLocation tier) {
+        ItemStack sword = new ItemStack(Items.IRON_SWORD);
+        sword.set(BFComponents.FORGED.get(), new ForgedItemData(GUILD_BLADE, tier, List.of()));
+        return sword;
     }
 
-    @GameTest(template = EMPTY, timeoutTicks = 80)
-    public static void archiveRefusesToResearchACopyOrAShortPayment(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, true);
-        UUID uuid = UUID.randomUUID();
-        archive.getBlueprintSlot().insertItem(0, guildBladeCopy(uuid, 5), false);
-        archive.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false);
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(archive.getSpeed() != 0, "archive must be turning");
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.COPY_FORBIDDEN, "a copy is not researched");
-            helper.assertTrue(archive.getMaterials().getStackInSlot(0).getCount() == 4, "a refused step does not take the iron");
-            archive.getBlueprintSlot().setStackInSlot(0, ItemStack.EMPTY);
-            helper.assertTrue(archive.getBlueprintSlot().insertItem(0, guildBladeOriginal(uuid), false).isEmpty(), "original must fit");
-            archive.getMaterials().setStackInSlot(0, new ItemStack(Items.IRON_INGOT, 3));
-            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.MISSING_COST, "three iron do not pay for four");
-            helper.assertTrue(BlueprintItem.data(archive.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays at the start");
-            helper.succeed();
-        });
-    }
+    public static void viewerPagesMatchTheReferencePack(GameTestHelper helper) {
+        List<ViewerCatalog.ResearchStep> research = ViewerCatalog.researchSteps();
+        ViewerCatalog.ResearchStep me = research.stream()
+                .filter(step -> step.id().getPath().equals("research/blueprintforge_guild_blade_me"))
+                .findFirst().orElse(null);
+        helper.assertTrue(me != null, "guild blade ME step must be listed");
+        helper.assertTrue(me.cost().size() == 1 && me.cost().getFirst().is(Items.IRON_INGOT) && me.cost().getFirst().getCount() == 4,
+                "ME step costs 4 iron");
+        helper.assertTrue(BlueprintItem.data(me.result()).orElseThrow().materialEfficiency() == 3, "the shown step lands on 3");
+        ViewerCatalog.ResearchStep flux = research.stream()
+                .filter(step -> step.id().getPath().equals("research/blueprintforge_guild_blade_flux"))
+                .findFirst().orElse(null);
+        helper.assertTrue(flux != null && flux.cost().size() == 1 && flux.cost().getFirst().is(Items.LAPIS_LAZULI) && flux.cost().getFirst().getCount() == 8,
+                "flux step costs 8 lapis");
 
-    @GameTest(template = EMPTY, timeoutTicks = 80)
-    public static void archiveDoesNotResearchPastTheCeilingOrWithoutRotation(GameTestHelper helper) {
-        BlueprintArchiveBlockEntity archive = archiveOnBelt(helper, true, false);
-        UUID uuid = UUID.randomUUID();
-        ItemStack capped = guildBladeOriginal(uuid);
-        BlueprintData data = BlueprintItem.data(capped).orElseThrow();
-        capped.set(BFComponents.BLUEPRINT.get(), data.withResearch(30, 40, data.researcherUuid(), data.researcherName()));
-        archive.getBlueprintSlot().insertItem(0, capped, false);
-        archive.getMaterials().insertItem(0, new ItemStack(Items.IRON_INGOT, 4), false);
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(archive.getSpeed() == 0, "this archive has no shaft");
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.AT_CAP, "ME at 30 does not start");
-            helper.assertTrue(archive.tryStart(ResearchAxis.TIME, player) == ResearchRefusal.AT_CAP, "TE at 40 does not start");
-            helper.assertTrue(archive.getMaterials().getStackInSlot(0).getCount() == 4, "a ceiling does not take materials");
-            ItemStack fresh = guildBladeOriginal(UUID.randomUUID());
-            archive.getBlueprintSlot().setStackInSlot(0, fresh);
-            helper.assertTrue(archive.tryStart(ResearchAxis.MATERIAL, player) == ResearchRefusal.NO_ROTATION, "a stopped shaft does not start");
-            helper.assertTrue(BlueprintItem.data(archive.getDocument()).orElseThrow().materialEfficiency() == 0, "ME stays 0");
-            helper.succeed();
-        });
+        ViewerCatalog.CopyPrint print = ViewerCatalog.copyPrints().stream()
+                .filter(page -> page.id().getPath().equals("copy/blueprintforge_guild_blade"))
+                .findFirst().orElse(null);
+        helper.assertTrue(print != null, "guild blade copy must be listed");
+        helper.assertTrue(print.cost().stream().anyMatch(stack -> stack.is(Items.PAPER) && stack.getCount() == 8), "10 runs cost 8 paper");
+        helper.assertTrue(print.cost().stream().anyMatch(stack -> stack.is(Items.INK_SAC) && stack.getCount() == 2), "10 runs cost 2 ink");
+        BlueprintData copy = BlueprintItem.data(print.copy()).orElseThrow();
+        helper.assertTrue(copy.clazz() == BlueprintClass.COPY && copy.runsRemaining() == 10, "the print is a 10-run copy");
+        helper.assertTrue(copy.materialEfficiency() == 0 && copy.flux() == 0 && copy.potency() == 0, "a fresh original prints at the floor");
+
+        List<ViewerCatalog.TierPage> tiers = ViewerCatalog.tiers();
+        helper.assertTrue(tiers.size() == 5, "five tier pages");
+        ViewerCatalog.TierPage handmade = tiers.stream().filter(page -> page.id().getPath().equals("tier/blueprintforge_tier1")).findFirst().orElseThrow();
+        ViewerCatalog.TierPage crafted = tiers.stream().filter(page -> page.id().getPath().equals("tier/blueprintforge_tier2")).findFirst().orElseThrow();
+        helper.assertTrue(!handmade.requiresBlueprint() && handmade.enchantLine() == null && handmade.durability().equals("1"),
+                "handmade needs no blueprint and the table still enchants it");
+        helper.assertTrue(crafted.requiresBlueprint() && crafted.durability().equals("1.1") && crafted.enchantLine() != null,
+                "crafted needs a blueprint and the table is not its path");
+        helper.assertTrue(ViewerCatalog.productionDocuments().stream().noneMatch(stack ->
+                BlueprintItem.data(stack).orElseThrow().clazz() == BlueprintClass.FRAGMENT), "fragments are not slot documents");
+        helper.assertFalse(ViewerCatalog.enchantNote().isEmpty(), "restricted mode says the table is not the forged path");
+        helper.succeed();
     }
 }

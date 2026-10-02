@@ -46,6 +46,8 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
     public static final String SOURCE_DIR = "blueprint_source";
     public static final String RESEARCH_DIR = "blueprint_research";
     public static final String ASSEMBLY_DIR = "blueprint_assembly";
+    public static final String LINE_DIR = "blueprint_line";
+    public static final String DOCK_DIR = "blueprint_dock";
 
     private static final Logger LOGGER = BlueprintForge.LOGGER;
     private static final Gson GSON = new Gson();
@@ -60,13 +62,15 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
 
     public record RawData(Map<ResourceLocation, JsonElement> tiers, Map<ResourceLocation, JsonElement> blueprints,
                           Map<ResourceLocation, JsonElement> sources, Map<ResourceLocation, JsonElement> research,
-                          Map<ResourceLocation, JsonElement> assemblies, List<String> errors) {
+                          Map<ResourceLocation, JsonElement> assemblies, Map<ResourceLocation, JsonElement> lines,
+                          Map<ResourceLocation, JsonElement> docks, List<String> errors) {
     }
 
     public record Result(Map<ResourceLocation, TierDefinition> tiers, Map<ResourceLocation, BlueprintDefinition> blueprints,
                          Map<ResourceLocation, SourceDefinition> sources, Set<ResourceLocation> inactiveBlueprints,
                          Map<ResourceLocation, ResearchProfile> research, Map<ResourceLocation, ResourceLocation> researchForBlueprint,
-                         Map<ResourceLocation, AssemblyRecipe> assemblies, List<String> errors) {
+                         Map<ResourceLocation, AssemblyRecipe> assemblies, Map<ResourceLocation, LineDefinition> lines,
+                         DockSettings dock, List<String> errors) {
     }
 
     /** Errors of the current load, kept for operators. */
@@ -83,6 +87,8 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
                 readDirectory(resourceManager, SOURCE_DIR, errors),
                 readDirectory(resourceManager, RESEARCH_DIR, errors),
                 readDirectory(resourceManager, ASSEMBLY_DIR, errors),
+                readDirectory(resourceManager, LINE_DIR, errors),
+                readDirectory(resourceManager, DOCK_DIR, errors),
                 errors);
     }
 
@@ -90,9 +96,10 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
     protected void apply(RawData raw, ResourceManager resourceManager, ProfilerFiller profiler) {
         Result result = load(raw, RegistryOps.create(JsonOps.INSTANCE, registries), BuiltInRegistries.ITEM::containsKey);
         publish(result);
-        LOGGER.info("Loaded {} tiers, {} blueprints ({} inactive), {} blueprint sources, {} research profiles, {} assemblies, {} errors",
+        LOGGER.info("Loaded {} tiers, {} blueprints ({} inactive), {} blueprint sources, {} research profiles, {} assemblies, {} lines, {} errors",
                 result.tiers().size(), result.blueprints().size(), result.inactiveBlueprints().size(),
-                result.sources().size(), result.research().size(), result.assemblies().size(), result.errors().size());
+                result.sources().size(), result.research().size(), result.assemblies().size(), result.lines().size(),
+                result.errors().size());
     }
 
     public static void publish(Result result) {
@@ -101,6 +108,8 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
         SourceRegistry.replace(result.sources());
         ResearchRegistry.replace(result.research(), result.researchForBlueprint());
         AssemblyRegistry.replace(result.assemblies());
+        LineRegistry.replace(result.lines());
+        DockSettingsRegistry.replace(result.dock());
         lastErrors = List.copyOf(result.errors());
     }
 
@@ -261,7 +270,38 @@ public final class BlueprintDataLoader extends SimplePreparableReloadListener<Bl
             });
         });
 
-        return new Result(tiers, blueprints, sources, inactive, research, researchForBlueprint, assemblies, errors);
+        Map<ResourceLocation, LineDefinition> lines = new LinkedHashMap<>();
+        raw.lines().forEach((id, json) -> {
+            String where = path(LINE_DIR, id);
+            decode(LineDefinition.CODEC, ops, json, errors, where).ifPresent(line -> {
+                if (!blueprints.containsKey(line.blueprint()) && !inactive.contains(line.blueprint())) {
+                    error(errors, where, "unknown blueprint " + line.blueprint());
+                    return;
+                }
+                if (!itemExists.test(line.ingredient()) || !itemExists.test(line.scrapItem())) {
+                    error(errors, where, "unknown item in line " + id);
+                    return;
+                }
+                lines.put(id, line);
+            });
+        });
+
+        DockSettings dock = DockSettings.DEFAULT;
+        if (!raw.docks().isEmpty()) {
+            Map.Entry<ResourceLocation, JsonElement> last = null;
+            for (Map.Entry<ResourceLocation, JsonElement> entry : raw.docks().entrySet()) {
+                last = entry;
+            }
+            if (last != null) {
+                String where = path(DOCK_DIR, last.getKey());
+                Optional<DockSettings> decoded = decode(DockSettings.CODEC, ops, last.getValue(), errors, where);
+                if (decoded.isPresent()) {
+                    dock = decoded.get();
+                }
+            }
+        }
+
+        return new Result(tiers, blueprints, sources, inactive, research, researchForBlueprint, assemblies, lines, dock, errors);
     }
 
     private static String path(String directory, ResourceLocation id) {

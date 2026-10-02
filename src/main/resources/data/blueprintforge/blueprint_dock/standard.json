@@ -1,0 +1,7 @@
+{
+  "accepts": ["blueprintforge:tier2", "blueprintforge:tier3"],
+  "slots": 1,
+  "swap_time_ticks": 100,
+  "drop_on_break": true,
+  "search_radius": 4
+}

@@ -1,0 +1,46 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": { "item": "minecraft:iron_ingot" },
+  "transitional_item": { "id": "blueprintforge:incomplete_blade" },
+  "loops": 3,
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        { "item": "blueprintforge:incomplete_blade" },
+        { "tag": "blueprintforge:stamps_t2" }
+      ],
+      "results": [{ "id": "blueprintforge:incomplete_blade" }]
+    },
+    {
+      "type": "create:pressing",
+      "ingredients": [{ "item": "blueprintforge:incomplete_blade" }],
+      "results": [{ "id": "blueprintforge:incomplete_blade" }]
+    },
+    {
+      "type": "create:filling",
+      "ingredients": [
+        { "item": "blueprintforge:incomplete_blade" },
+        { "type": "neoforge:single", "amount": 250, "fluid": "minecraft:water" }
+      ],
+      "results": [{ "id": "blueprintforge:incomplete_blade" }]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        { "item": "blueprintforge:incomplete_blade" },
+        { "item": "create:precision_mechanism" }
+      ],
+      "results": [{ "id": "blueprintforge:incomplete_blade" }]
+    },
+    {
+      "type": "create:cutting",
+      "ingredients": [{ "item": "blueprintforge:incomplete_blade" }],
+      "results": [{ "id": "blueprintforge:incomplete_blade" }]
+    }
+  ],
+  "results": [
+    { "chance": 120.0, "id": "minecraft:iron_sword" },
+    { "chance": 8.0, "id": "minecraft:iron_nugget" }
+  ]
+}

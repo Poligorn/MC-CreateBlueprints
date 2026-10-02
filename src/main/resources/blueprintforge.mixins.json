@@ -4,13 +4,9 @@
   "package": "com.blueprintforge.compat.create",
   "compatibilityLevel": "JAVA_21",
     "mixins": [
-    "BeltInventoryMixin",
-    "BeltProcessingBehaviourMixin",
-    "BasinAccess",
-    "BasinRecipeMixin",
-    "MixerDurationMixin",
-    "MechanicalCraftingMixin",
-    "RecipeManagerMixin"
+    "RecipeManagerMixin",
+    "SequencedAssemblyMixin",
+    "DeployerLineMixin"
   ],
   "injectors": {
     "defaultRequire": 1

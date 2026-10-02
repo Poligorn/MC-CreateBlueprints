@@ -9,6 +9,7 @@ import com.blueprintforge.logic.EnchantPolicy;
 import com.blueprintforge.registry.BFComponents;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.ItemTags;
@@ -56,16 +57,18 @@ public final class EnchantingHandler {
     public static EnchantPolicy.Subject subject(ItemStack stack) {
         ForgedItemData forged = stack.get(BFComponents.FORGED.get());
         EnchantPolicy.Forged forgedState;
+        int tierNumber = -1;
         if (forged == null) {
             forgedState = EnchantPolicy.Forged.NONE;
         } else {
+            tierNumber = EnchantPolicy.tierNumber(forged.tierId());
             forgedState = TierRegistry.get(forged.tierId())
                     .map(TierDefinition::requiresBlueprint)
                     .map(requires -> requires ? EnchantPolicy.Forged.BLUEPRINT_TIER : EnchantPolicy.Forged.FREE_TIER)
                     .orElse(EnchantPolicy.Forged.UNKNOWN_TIER);
         }
         return new EnchantPolicy.Subject(forgedState, stack.is(ENCHANTING_ALLOWED), stack.is(ENCHANTING_DENIED),
-                stack.is(Items.BOOK) || stack.is(Items.ENCHANTED_BOOK));
+                stack.is(Items.BOOK) || stack.is(Items.ENCHANTED_BOOK), tierNumber);
     }
 
     private static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
@@ -76,7 +79,8 @@ public final class EnchantingHandler {
         EnchantPolicy.Verdict verdict;
         if (mode == EnchantPolicy.Mode.FULL) {
             verdict = EnchantPolicy.Verdict.DENY_FULL;
-        } else if (mode == EnchantPolicy.Mode.RESTRICTED && !event.getItemStack().isEmpty()) {
+        } else if ((mode == EnchantPolicy.Mode.RESTRICTED || mode == EnchantPolicy.Mode.SCALED)
+                && !event.getItemStack().isEmpty()) {
             verdict = verdict(event.getItemStack());
         } else {
             return;
@@ -89,7 +93,8 @@ public final class EnchantingHandler {
     }
 
     private static void onEnchantmentLevelSet(EnchantmentLevelSetEvent event) {
-        if (BFConfig.enchantingMode() == EnchantPolicy.Mode.OFF) {
+        EnchantPolicy.Mode mode = BFConfig.enchantingMode();
+        if (mode == EnchantPolicy.Mode.OFF) {
             return;
         }
         EnchantPolicy.Verdict verdict = verdict(event.getItem());
@@ -107,7 +112,11 @@ public final class EnchantingHandler {
     }
 
     private static void onAnvilUpdate(AnvilUpdateEvent event) {
-        if (BFConfig.enchantingMode() == EnchantPolicy.Mode.OFF || !EnchantmentHelper.hasAnyEnchantments(event.getRight())) {
+        EnchantPolicy.Mode mode = BFConfig.enchantingMode();
+        if (mode == EnchantPolicy.Mode.OFF) {
+            return;
+        }
+        if (!EnchantmentHelper.hasAnyEnchantments(event.getRight())) {
             return;
         }
         EnchantPolicy.Verdict verdict = verdict(event.getLeft());
@@ -115,6 +124,11 @@ public final class EnchantingHandler {
             event.setCanceled(true);
             notify(event.getPlayer(), verdict);
         }
+    }
+
+    public static ResourceLocation tierIdOf(ItemStack stack) {
+        ForgedItemData forged = stack.get(BFComponents.FORGED.get());
+        return forged == null ? null : forged.tierId();
     }
 
     private static void onVillagerTrades(VillagerTradesEvent event) {
@@ -134,4 +148,5 @@ public final class EnchantingHandler {
             serverPlayer.displayClientMessage(Component.translatable(verdict.messageKey()), true);
         }
     }
+
 }

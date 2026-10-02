@@ -9,8 +9,9 @@
   "copy_time_per_run_ticks": 80,
   "copy_stress": 256,
   "me_step_cost": [{ "item": "minecraft:iron_ingot", "count": 4 }],
-  "te_step_cost": [{ "item": "minecraft:redstone", "count": 8 }],
+  "flux_step_cost": [{ "item": "minecraft:lapis_lazuli", "count": 8 }],
+  "potency_step_cost": [{ "item": "minecraft:experience_bottle", "count": 4 }],
   "stress_per_step": 256,
-  "time_per_step_ticks": 400,
+  "time_per_step_ticks": 100,
   "allow_research_on_copy": false
 }

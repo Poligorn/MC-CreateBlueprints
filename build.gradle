@@ -45,6 +45,20 @@ repositories {
             includeGroup 'com.tterrag.registrate'
         }
     }
+    maven {
+        name = 'JEI'
+        url = 'https://maven.blamejared.com'
+        content {
+            includeGroup 'mezz.jei'
+        }
+    }
+    maven {
+        name = 'EMI'
+        url = 'https://maven.terraformersmc.com/releases'
+        content {
+            includeGroup 'dev.emi'
+        }
+    }
 }
 
 neoForge {
@@ -95,6 +109,10 @@ dependencies {
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
+
+    // Optional viewers. compileOnly so neither jar is shaded, and the mod still loads when they are absent.
+    compileOnly("mezz.jei:jei-1.21.1-neoforge:19.21.2.313") { transitive = false }
+    compileOnly("dev.emi:emi-neoforge:1.1.22+1.21.1") { transitive = false }
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
