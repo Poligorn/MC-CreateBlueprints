@@ -14,6 +14,7 @@ import com.blueprintforge.registry.BFCreativeTabs;
 import com.blueprintforge.registry.BFItems;
 import com.blueprintforge.registry.BFLootModifiers;
 import com.blueprintforge.registry.BFMenus;
+import com.blueprintforge.research.ResearchDataLoader;
 
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
@@ -61,6 +62,7 @@ public final class BlueprintForge {
 
     private static void addReloadListeners(AddReloadListenerEvent event) {
         event.addListener(new BlueprintDataLoader(event.getRegistryAccess()));
+        event.addListener(new ResearchDataLoader(event.getRegistryAccess()));
     }
 
     private static void syncDefinitions(OnDatapackSyncEvent event) {

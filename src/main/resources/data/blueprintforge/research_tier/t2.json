@@ -1,0 +1,37 @@
+{
+  "display": {
+    "translate": "research.tier.blueprintforge.t2"
+  },
+  "color": "#6878EC",
+  "steps": {
+    "min": 4,
+    "max": 6
+  },
+  "operations": [
+    "blueprintforge:press",
+    "blueprintforge:blast"
+  ],
+  "bonus_multiplier": 1.2,
+  "attempt_cost": {
+    "deployers": {
+      "min": 1,
+      "max": 2
+    },
+    "pool": [
+      {
+        "item": "minecraft:iron_ingot",
+        "count": {
+          "min": 2,
+          "max": 4
+        }
+      },
+      {
+        "item": "minecraft:gold_ingot",
+        "count": {
+          "min": 1,
+          "max": 2
+        }
+      }
+    ]
+  }
+}

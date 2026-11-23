@@ -1,0 +1,30 @@
+{
+  "display": {
+    "translate": "research.tier.blueprintforge.t1"
+  },
+  "color": "#4A90E6",
+  "steps": {
+    "min": 3,
+    "max": 4
+  },
+  "operations": [
+    "blueprintforge:press",
+    "blueprintforge:blast"
+  ],
+  "bonus_multiplier": 1.1,
+  "attempt_cost": {
+    "deployers": {
+      "min": 0,
+      "max": 1
+    },
+    "pool": [
+      {
+        "item": "minecraft:copper_ingot",
+        "count": {
+          "min": 1,
+          "max": 2
+        }
+      }
+    ]
+  }
+}

@@ -29,5 +29,9 @@
 
   "message.blueprintforge.enchanting.restricted": "Enchanting is for handmade things. This item is made from a blueprint",
   "message.blueprintforge.enchanting.full": "The enchanting table does not work on this server",
-  "message.blueprintforge.enchanting.books_disabled": "Enchanted books are disabled on this server"
+  "message.blueprintforge.enchanting.books_disabled": "Enchanted books are disabled on this server",
+
+  "research.tier.blueprintforge.t1": "Tier 1",
+  "research.tier.blueprintforge.t2": "Tier 2",
+  "research.tier.blueprintforge.t3": "Tier 3"
 }
