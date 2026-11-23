@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blueprintforge.client.BlueprintForgeClient;
+import com.blueprintforge.compat.createapi.CreateSpike;
 import com.blueprintforge.data.BlueprintDataLoader;
 import com.blueprintforge.data.BlueprintSyncPayload;
 import com.blueprintforge.event.CreativeIssueHandler;
@@ -53,6 +54,7 @@ public final class BlueprintForge {
         NeoForge.EVENT_BUS.addListener(BlueprintForge::syncDefinitions);
         EnchantingHandler.register(NeoForge.EVENT_BUS);
         CreativeIssueHandler.register(NeoForge.EVENT_BUS);
+        CreateSpike.register(modBus, NeoForge.EVENT_BUS);
     }
 
     public static ResourceLocation id(String path) {
