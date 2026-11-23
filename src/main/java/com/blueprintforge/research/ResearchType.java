@@ -1,0 +1,27 @@
+package com.blueprintforge.research;
+
+import com.mojang.serialization.Codec;
+
+import net.minecraft.util.StringRepresentable;
+
+/**
+ * The corner symbol of a blueprint icon. These are the types the official icons exist for; what an item from another
+ * mod gets (open question 27) is not decided, so unknown values are rejected rather than guessed.
+ */
+public enum ResearchType implements StringRepresentable {
+    SWORD("sword"), PICKAXE("pickaxe"), AXE("axe"), SHOVEL("shovel"), HOE("hoe"),
+    HELMET("helmet"), CHESTPLATE("chestplate"), LEGGINGS("leggings"), BOOTS("boots");
+
+    public static final Codec<ResearchType> CODEC = StringRepresentable.fromEnum(ResearchType::values);
+
+    private final String serializedName;
+
+    ResearchType(String serializedName) {
+        this.serializedName = serializedName;
+    }
+
+    @Override
+    public String getSerializedName() {
+        return serializedName;
+    }
+}
