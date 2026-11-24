@@ -133,6 +133,7 @@ public final class TerminalGameTests {
         ResearchRun run = workpiece.get(BFComponents.RESEARCH_RUN.get());
         ResearchBlueprint stored = be.inventory().getStackInSlot(TerminalSlots.BLUEPRINT).get(BFComponents.RESEARCH_BLUEPRINT.get());
         helper.assertTrue(run != null && run.seed() == stored.seed().orElseThrow() && run.tier().equals(T3), "the workpiece remembers tier and seed");
+        helper.assertTrue(run.steps() == be.chain().size(), "the workpiece knows how long its chain is, the M of 'N of M'");
 
         // The workpiece is the target item with a log: it must not be accepted as a fresh target.
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.TARGET, workpiece.copy(), false).isEmpty(), "a workpiece is refused by the target slot");
@@ -178,6 +179,7 @@ public final class TerminalGameTests {
         helper.assertTrue(expected.percent() < 100, "the wrong run is below 100%");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == expected.percent(), "percent by position: " + expected.percent());
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_MATCHED) == expected.matched(), "matched positions are reported");
+        helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_LAST_RECORDED) == wrong.size(), "the hint counts the steps the run recorded");
         helper.succeed();
     }
 
@@ -190,6 +192,7 @@ public final class TerminalGameTests {
         be.inventory().insertItem(TerminalSlots.RETURN, runWith(helper, be, List.of()), false);
         helper.assertTrue(be.checkRun() == null, "an empty log is still a run");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == 0, "no recorded steps is 0%");
+        helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_LAST_RECORDED) == 0, "and no recorded steps is reported as 0");
         helper.assertTrue(be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false).is(BFItems.SCRAP.get()), "and gives scrap");
 
         List<String> longer = new java.util.ArrayList<>(chain);
@@ -197,6 +200,7 @@ public final class TerminalGameTests {
         be.inventory().insertItem(TerminalSlots.RETURN, runWith(helper, be, longer), false);
         be.checkRun();
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == 99, "every step right plus an extra one is 99%, not 100%");
+        helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_LAST_RECORDED) == chain.size() + 1, "recorded steps can exceed the chain: 'N of M' shows it");
         helper.assertTrue(be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false).is(BFItems.SCRAP.get()), "so it gives scrap");
         helper.succeed();
     }

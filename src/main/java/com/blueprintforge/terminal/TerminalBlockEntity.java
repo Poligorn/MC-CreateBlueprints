@@ -55,7 +55,8 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     public static final int DATA_MISSING = 7;
     public static final int DATA_FLAGS = 8;
     public static final int DATA_SPRITE_TIER = 9;
-    public static final int DATA_COUNT = 10;
+    public static final int DATA_LAST_RECORDED = 10;
+    public static final int DATA_COUNT = 11;
 
     public static final int FLAG_BLUEPRINT = 1;
     public static final int FLAG_UNKNOWN_TIER = 2;
@@ -120,6 +121,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     private int lastPercent = -1;
     private int lastMatched;
     private int lastTotal;
+    private int lastRecorded;
 
     public final ContainerData data = new ContainerData() {
         @Override
@@ -132,6 +134,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
                 case DATA_PERCENT -> lastPercent;
                 case DATA_MATCHED -> lastMatched;
                 case DATA_TOTAL -> lastTotal;
+                case DATA_LAST_RECORDED -> lastRecorded;
                 case DATA_MISSING -> missing;
                 case DATA_FLAGS -> flags;
                 case DATA_SPRITE_TIER -> blueprint().map(ResearchBlueprint::spriteTier).orElse(0);
@@ -290,7 +293,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         // Enchantments and durability stay on the workpiece, which is the item itself, and are not carried to the result
         // (open question 5, temporary choice).
         ItemStack workpiece = SpikeLine.workpiece(target.copyWithCount(1));
-        workpiece.set(BFComponents.RESEARCH_RUN.get(), new ResearchRun(bp.tier(), bp.target(), bp.item(), bp.seed().orElseThrow(), bp.generatorVersion()));
+        workpiece.set(BFComponents.RESEARCH_RUN.get(), new ResearchRun(bp.tier(), bp.target(), bp.item(), bp.seed().orElseThrow(), bp.generatorVersion(), chain().size()));
         inventory.setStackInSlot(TerminalSlots.TARGET, ItemStack.EMPTY);
         inventory.setStackInSlot(TerminalSlots.OUTPUT, workpiece);
         return null;
@@ -321,6 +324,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         lastPercent = score.percent();
         lastMatched = score.matched();
         lastTotal = score.total();
+        lastRecorded = score.actualLength();
 
         // TODO(egor): stubs. 100% should give the enhanced item (task 9) and anything less the scrap (task 10, open question 3).
         // Here 100% gives the target item with a gold name, a glint and a tier line, anything less gives a placeholder scrap item.
@@ -361,6 +365,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         tag.putInt("LastPercent", lastPercent);
         tag.putInt("LastMatched", lastMatched);
         tag.putInt("LastTotal", lastTotal);
+        tag.putInt("LastRecorded", lastRecorded);
     }
 
     @Override
@@ -370,6 +375,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         lastPercent = tag.contains("LastPercent") ? tag.getInt("LastPercent") : -1;
         lastMatched = tag.getInt("LastMatched");
         lastTotal = tag.getInt("LastTotal");
+        lastRecorded = tag.getInt("LastRecorded");
         refresh();
     }
 

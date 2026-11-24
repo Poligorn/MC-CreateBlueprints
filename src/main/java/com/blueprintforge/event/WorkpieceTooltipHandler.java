@@ -3,6 +3,7 @@ package com.blueprintforge.event;
 import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.compat.createapi.SpikeLine;
 import com.blueprintforge.registry.BFComponents;
+import com.blueprintforge.research.ResearchRun;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -21,9 +22,15 @@ public final class WorkpieceTooltipHandler {
     @SubscribeEvent
     public static void onTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
-        if (stack.has(BFComponents.RESEARCH_RUN.get()) && SpikeLine.isWorkpiece(stack)) {
-            event.getToolTip().add(Math.min(1, event.getToolTip().size()),
-                    Component.translatable("tooltip.blueprintforge.workpiece", SpikeLine.operationsOf(stack).size()).withStyle(ChatFormatting.GOLD));
+        ResearchRun run = stack.get(BFComponents.RESEARCH_RUN.get());
+        if (run == null || !SpikeLine.isWorkpiece(stack)) {
+            return;
         }
+        int recorded = SpikeLine.operationsOf(stack).size();
+        // "N of M" says how many steps the machines wrote down, never which: the order stays hidden.
+        Component line = run.steps() > 0
+                ? Component.translatable("tooltip.blueprintforge.workpiece.of", recorded, run.steps())
+                : Component.translatable("tooltip.blueprintforge.workpiece", recorded);
+        event.getToolTip().add(Math.min(1, event.getToolTip().size()), line.copy().withStyle(recorded == run.steps() ? ChatFormatting.GREEN : ChatFormatting.GOLD));
     }
 }
