@@ -85,7 +85,7 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
                 graphics.fill(getX() + 1, getY() + height - 3, getX() + width - 1, getY() + height - 1, active ? STEEL_DARK : OUTLINE);
                 graphics.fill(getX() + 3, getY() + 3, getX() + 5, getY() + 5, TEAL_DARK);
                 graphics.fill(getX() + width - 5, getY() + 3, getX() + width - 3, getY() + 5, TEAL_DARK);
-                graphics.drawCenteredString(font, getMessage(), getX() + width / 2, getY() + 4, active ? LABEL : STEEL_DARK);
+                drawCentered(graphics, getMessage(), getX() + width / 2, getY() + 4, active ? LABEL : STEEL_DARK);
             }
         });
     }
@@ -152,6 +152,11 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         drawScreen(graphics, x, y);
     }
 
+    /** Centred text without the vanilla shadow: dark labels on light steel vanish in a black shadow. */
+    private void drawCentered(GuiGraphics graphics, Component text, int centerX, int y, int colour) {
+        graphics.drawString(font, text, centerX - font.width(text) / 2, y, colour, false);
+    }
+
     private static void rect(GuiGraphics graphics, int x, int y, int w, int h, int colour) {
         graphics.fill(x, y, x + w, y + h, colour);
     }
@@ -216,7 +221,7 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         String[] keys = {"blueprint", "item", "output"};
         for (int i = 0; i < 3; i++) {
             Component label = Component.translatable("gui.blueprintforge.terminal.label." + keys[i]);
-            graphics.drawCenteredString(font, label, x + TerminalMenu.SLOT_X[i] + 8, y + TerminalMenu.SLOT_Y[i] - 12, LABEL);
+            drawCentered(graphics, label, x + TerminalMenu.SLOT_X[i] + 8, y + TerminalMenu.SLOT_Y[i] - 12, LABEL);
         }
         int bx = x + TerminalMenu.SLOT_X[0];
         int by = y + TerminalMenu.SLOT_Y[0];
@@ -255,7 +260,7 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
             rect(graphics, cx + (int) Math.round(Math.cos(angle) * r), cy + (int) Math.round(Math.sin(angle) * r), 1, 1, GREEN);
         }
         rect(graphics, cx - 1, cy - 1, 3, 3, STEEL_LIGHT);
-        graphics.drawCenteredString(font, Component.translatable("gui.blueprintforge.terminal.gauge"), cx, cy + radius + 6, LABEL);
+        drawCentered(graphics, Component.translatable("gui.blueprintforge.terminal.gauge"), cx, cy + radius + 6, LABEL);
     }
 
     private void drawPlateAndPanel(GuiGraphics graphics, int x, int y) {
