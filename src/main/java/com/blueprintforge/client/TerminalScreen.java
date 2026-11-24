@@ -3,8 +3,11 @@ package com.blueprintforge.client;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.blueprintforge.compat.createapi.SpikeLine;
 import com.blueprintforge.item.ResearchBlueprintItem;
+import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.research.ResearchBlueprint;
+import com.blueprintforge.research.ResearchRun;
 import com.blueprintforge.terminal.LineScanner;
 import com.blueprintforge.terminal.TerminalBlockEntity;
 import com.blueprintforge.terminal.TerminalMenu;
@@ -19,6 +22,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Terminal screen in the "Create computer" style of mockup v2, drawn in code: andesite body, brass trim, a dark amber
@@ -173,22 +177,41 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
             }
         }
 
-        // The last run and the warning are laid out from the bottom of the screen up, so a long line above never overlaps them.
+        // The recorded-steps hint, the last run and the warning are laid out from the bottom of the screen up, so a long line
+        // above never overlaps them.
         int percent = menu.data(TerminalBlockEntity.DATA_PERCENT);
-        Component last = percent < 0
-                ? Component.translatable("gui.blueprintforge.terminal.last.none")
-                : Component.translatable("gui.blueprintforge.terminal.last", percent,
-                        menu.data(TerminalBlockEntity.DATA_MATCHED), menu.data(TerminalBlockEntity.DATA_TOTAL));
         List<FormattedCharSequence> warning = font.split(Component.translatable("gui.blueprintforge.terminal.warning"), CRT_W - 8);
-        List<FormattedCharSequence> lastLines = font.split(last, CRT_W - 8);
-        int warningY = CRT_Y + CRT_H - 3 - warning.size() * step + 1;
-        int lastY = warningY - 3 - lastLines.size() * step;
+        int bottom = CRT_Y + CRT_H - 3 - warning.size() * step + 1;
         for (int i = 0; i < warning.size(); i++) {
-            graphics.drawString(font, warning.get(i), x, warningY + i * step, AMBER_DIM, false);
+            graphics.drawString(font, warning.get(i), x, bottom + i * step, AMBER_DIM, false);
         }
-        int lastColor = percent < 0 ? AMBER_DIM : percent >= 100 ? GREEN : AMBER;
-        for (int i = 0; i < lastLines.size(); i++) {
-            graphics.drawString(font, lastLines.get(i), x, lastY + i * step, lastColor, false);
+        if (percent >= 0) {
+            List<FormattedCharSequence> last = font.split(Component.translatable("gui.blueprintforge.terminal.last", percent,
+                    menu.data(TerminalBlockEntity.DATA_MATCHED), menu.data(TerminalBlockEntity.DATA_TOTAL)), CRT_W - 8);
+            bottom -= 3 + last.size() * step;
+            for (int i = 0; i < last.size(); i++) {
+                graphics.drawString(font, last.get(i), x, bottom + i * step, percent >= 100 ? GREEN : AMBER, false);
+            }
+        } else {
+            bottom -= 3 + step;
+            graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.last.none"), x, bottom, AMBER_DIM, false);
+        }
+        // A workpiece waiting in the return slot shows how many steps it has recorded; after a check the count of that run stays.
+        ItemStack returned = menu.getSlot(TerminalSlots.RETURN).getItem();
+        ResearchRun run = returned.get(BFComponents.RESEARCH_RUN.get());
+        int recorded = -1;
+        int steps = menu.data(TerminalBlockEntity.DATA_STEPS);
+        if (run != null && SpikeLine.isWorkpiece(returned)) {
+            recorded = SpikeLine.operationsOf(returned).size();
+            steps = run.steps() > 0 ? run.steps() : steps;
+        } else if (percent >= 0) {
+            recorded = menu.data(TerminalBlockEntity.DATA_LAST_RECORDED);
+            steps = menu.data(TerminalBlockEntity.DATA_TOTAL);
+        }
+        if (recorded >= 0) {
+            bottom -= step;
+            graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.recorded", recorded, steps), x, bottom,
+                    recorded == steps ? GREEN : AMBER, false);
         }
     }
 
