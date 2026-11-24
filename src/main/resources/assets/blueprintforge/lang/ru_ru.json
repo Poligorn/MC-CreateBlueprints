@@ -40,5 +40,6 @@
   "gui.blueprintforge.terminal.error.output_busy": "Сначала заберите предмет из выходного слота",
   "gui.blueprintforge.terminal.error.no_workpiece": "Положите заготовку в слот возврата",
   "gui.blueprintforge.terminal.create.tooltip": "Потратить предмет-цель и выдать заготовку",
-  "gui.blueprintforge.terminal.check.tooltip": "Сверить вернувшуюся заготовку с цепочкой"
+  "gui.blueprintforge.terminal.check.tooltip": "Сверить вернувшуюся заготовку с цепочкой",
+  "tooltip.blueprintforge.result.from": "Из чертежа, %s"
 }

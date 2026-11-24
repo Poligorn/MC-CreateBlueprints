@@ -25,7 +25,7 @@ import net.minecraft.resources.ResourceLocation;
 
 class ResearchDataLoaderTest {
     private static final Predicate<ResourceLocation> ITEMS = Set.of(
-            "minecraft:iron_sword", "minecraft:iron_pickaxe", "minecraft:iron_chestplate",
+            "minecraft:iron_sword", "minecraft:iron_pickaxe", "minecraft:iron_chestplate", "minecraft:golden_pickaxe",
             "minecraft:copper_ingot", "minecraft:iron_ingot", "minecraft:gold_ingot", "minecraft:diamond")
             .stream().map(ResourceLocation::parse).collect(java.util.stream.Collectors.toSet())::contains;
 
@@ -70,7 +70,7 @@ class ResearchDataLoaderTest {
             tiers.put(name, shipped("research_tier", name).toString());
         }
         Map<String, String> targets = new TreeMap<>();
-        for (String name : new String[] {"iron_sword", "iron_pickaxe", "iron_chestplate"}) {
+        for (String name : new String[] {"sword_t3", "pickaxe_t3", "chestplate_t3"}) {
             targets.put(name, shipped("research_target", name).toString());
         }
         ResearchDataLoader.Result result = load(tiers, targets);
@@ -78,7 +78,7 @@ class ResearchDataLoaderTest {
         assertEquals(java.util.List.of(), result.errors());
         assertEquals(3, result.tiers().size());
         assertEquals(3, result.targets().size());
-        assertEquals(ResearchType.CHESTPLATE, result.targets().get(id("iron_chestplate")).type());
+        assertEquals(ResearchType.CHESTPLATE, result.targets().get(id("chestplate_t3")).type());
     }
 
     @Test
@@ -166,12 +166,12 @@ class ResearchDataLoaderTest {
 
     @Test
     void invalidTargetIsSkippedAndAMissingItemIsInactiveNotAnError() {
-        ResearchDataLoader.Result result = load(Map.of(), Map.of(
-                "iron_sword", "{\"item\": \"minecraft:iron_sword\", \"type\": \"sword\"}",
-                "unknown_type", "{\"item\": \"minecraft:iron_pickaxe\", \"type\": \"wand\"}",
-                "no_item_field", "{\"type\": \"sword\"}",
-                "bad_item_id", "{\"item\": \"Not An Id\", \"type\": \"sword\"}",
-                "other_mod_item", "{\"item\": \"othermod:blade\", \"type\": \"sword\"}"));
+        ResearchDataLoader.Result result = load(Map.of("ok", tier(OK_STEPS, OK_OPS, NO_COST)), Map.of(
+                "iron_sword", "{\"item\": \"minecraft:iron_sword\", \"type\": \"sword\", \"tier\": \"blueprintforge:ok\"}",
+                "unknown_type", "{\"item\": \"minecraft:iron_pickaxe\", \"type\": \"wand\", \"tier\": \"blueprintforge:ok\"}",
+                "no_item_field", "{\"type\": \"sword\", \"tier\": \"blueprintforge:ok\"}",
+                "bad_item_id", "{\"item\": \"Not An Id\", \"type\": \"sword\", \"tier\": \"blueprintforge:ok\"}",
+                "other_mod_item", "{\"item\": \"othermod:blade\", \"type\": \"sword\", \"tier\": \"blueprintforge:ok\"}"));
 
         assertEquals(Set.of(id("iron_sword")), result.targets().keySet());
         assertEquals(Set.of(id("other_mod_item")), result.inactiveTargets());
@@ -183,6 +183,26 @@ class ResearchDataLoaderTest {
     }
 
     @Test
+    void aTargetOfAnUnknownTierIsSkippedWithAnError() {
+        ResearchDataLoader.Result result = load(Map.of("ok", tier(OK_STEPS, OK_OPS, NO_COST)), Map.of(
+                "good", "{\"item\": \"minecraft:iron_sword\", \"type\": \"sword\", \"tier\": \"blueprintforge:ok\"}",
+                "orphan", "{\"item\": \"minecraft:iron_sword\", \"type\": \"sword\", \"tier\": \"blueprintforge:nope\"}",
+                "no_tier", "{\"item\": \"minecraft:iron_sword\", \"type\": \"sword\"}"));
+        assertEquals(Set.of(id("good")), result.targets().keySet());
+        assertTrue(hasError(result, "orphan", "unknown tier"), result.errors().toString());
+        assertTrue(hasError(result, "no_tier"), result.errors().toString());
+    }
+
+    @Test
+    void aChainLongerThanSixteenStepsIsRefused() {
+        ResearchDataLoader.Result result = load(Map.of(
+                "sixteen", tier("{\"min\": 12, \"max\": 16}", OK_OPS, NO_COST),
+                "seventeen", tier("{\"min\": 12, \"max\": 17}", OK_OPS, NO_COST)), Map.of());
+        assertEquals(Set.of(id("sixteen")), result.tiers().keySet());
+        assertTrue(hasError(result, "seventeen", "limit of 16"), result.errors().toString());
+    }
+
+    @Test
     void brokenSyntaxIsReportedByTheParserNotSwallowed() {
         assertThrows(RuntimeException.class, () -> ResearchDataLoader.parseJson(new StringReader("{\"item\": ")));
         assertThrows(RuntimeException.class, () -> ResearchDataLoader.parseJson(new StringReader("")));
@@ -191,7 +211,8 @@ class ResearchDataLoaderTest {
     @Test
     void everyIconTypeIsAcceptedAndNothingElse() {
         for (ResearchType type : ResearchType.values()) {
-            ResearchDataLoader.Result result = load(Map.of(), Map.of("t", "{\"item\": \"minecraft:iron_sword\", \"type\": \"" + type.getSerializedName() + "\"}"));
+            ResearchDataLoader.Result result = load(Map.of("ok", tier(OK_STEPS, OK_OPS, NO_COST)),
+                    Map.of("t", "{\"item\": \"minecraft:iron_sword\", \"type\": \"" + type.getSerializedName() + "\", \"tier\": \"blueprintforge:ok\"}"));
             assertEquals(type, result.targets().get(id("t")).type());
         }
         assertEquals(14, ResearchType.values().length);

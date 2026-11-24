@@ -43,7 +43,13 @@ public record ResearchTier(
             Codec.intRange(1, 5).optionalFieldOf("sprite_tier", 1).forGetter(ResearchTier::spriteTier)
     ).apply(i, ResearchTier::new)).validate(ResearchTier::validate);
 
+    /** A chain is never longer than this: past 16 steps a tier gets harder through resources, not length. */
+    public static final int MAX_STEPS = 16;
+
     private static DataResult<ResearchTier> validate(ResearchTier tier) {
+        if (tier.steps.max() > MAX_STEPS) {
+            return DataResult.error(() -> "steps.max " + tier.steps.max() + " is above the limit of " + MAX_STEPS);
+        }
         if (tier.steps.min() < 1) {
             return DataResult.error(() -> "steps.min must be at least 1");
         }

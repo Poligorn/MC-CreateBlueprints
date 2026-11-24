@@ -145,7 +145,8 @@ class ResourcePackIntegrityTest {
         for (String key : List.of("block.blueprintforge.terminal", "item.blueprintforge.research_blueprint", "item.blueprintforge.scrap",
                 "research.tier.blueprintforge.t1", "research.tier.blueprintforge.t2", "research.tier.blueprintforge.t3",
                 "gui.blueprintforge.terminal.create", "gui.blueprintforge.terminal.check", "gui.blueprintforge.terminal.warning",
-                "gui.blueprintforge.terminal.last", "gui.blueprintforge.terminal.line.missing", "tooltip.blueprintforge.workpiece")) {
+                "gui.blueprintforge.terminal.last", "gui.blueprintforge.terminal.line.missing", "tooltip.blueprintforge.workpiece",
+                "tooltip.blueprintforge.result.from")) {
             assertTrue(en.has(key), "en_us lacks " + key);
             assertTrue(ru.has(key), "ru_ru lacks " + key);
         }
