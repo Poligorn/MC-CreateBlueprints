@@ -18,8 +18,6 @@
   "gui.blueprintforge.terminal.check": "Check run",
   "gui.blueprintforge.terminal.empty": "Insert a blueprint",
   "gui.blueprintforge.terminal.steps": "Steps: %s",
-  "gui.blueprintforge.terminal.op.press": "Pressing: %s",
-  "gui.blueprintforge.terminal.op.blast": "Blasting: %s",
   "gui.blueprintforge.terminal.op.other": "Other: %s",
   "gui.blueprintforge.terminal.unknown_tier": "Unknown tier (datapack)",
   "gui.blueprintforge.terminal.line.ok": "Line: nothing missing",
@@ -28,7 +26,7 @@
   "gui.blueprintforge.terminal.machine.blast": "fan behind lava",
   "gui.blueprintforge.terminal.last": "Last run: %s%% (%s of %s)",
   "gui.blueprintforge.terminal.last.none": "No runs yet",
-  "gui.blueprintforge.terminal.warning": "Only 100% gives the item, else scrap. The target is spent every try.",
+  "gui.blueprintforge.terminal.warning": "Only 100% gives the item, else scrap. The target is always spent.",
   "gui.blueprintforge.terminal.slot.0": "Blueprint",
   "gui.blueprintforge.terminal.slot.1": "Target item",
   "gui.blueprintforge.terminal.slot.2": "Workpiece / result",
@@ -43,5 +41,6 @@
   "gui.blueprintforge.terminal.check.tooltip": "Score the returned workpiece against the chain",
   "tooltip.blueprintforge.result.from": "From a blueprint, %s",
   "gui.blueprintforge.terminal.recorded": "Recorded steps: %s of %s",
-  "tooltip.blueprintforge.workpiece.of": "Workpiece: %s of %s steps recorded"
+  "tooltip.blueprintforge.workpiece.of": "Workpiece: %s of %s steps recorded",
+  "gui.blueprintforge.terminal.ops": "Press %s · Blast %s"
 }

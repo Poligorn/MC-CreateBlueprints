@@ -52,25 +52,25 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
     private static final int CRT_X = 30;
     private static final int CRT_Y = 22;
     private static final int CRT_W = 140;
-    private static final int CRT_H = 108;
+    private static final int CRT_H = 116;
 
     public TerminalScreen(TerminalMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         imageWidth = 176;
-        imageHeight = 240;
+        imageHeight = 248;
         titleLabelX = 8;
         titleLabelY = 7;
-        inventoryLabelY = 151;
+        inventoryLabelY = 159;
     }
 
     @Override
     protected void init() {
         super.init();
         addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.terminal.create"), button -> press(TerminalMenu.BUTTON_CREATE))
-                .bounds(leftPos + CRT_X, topPos + 134, 68, 14)
+                .bounds(leftPos + CRT_X, topPos + 142, 68, 14)
                 .tooltip(Tooltip.create(Component.translatable("gui.blueprintforge.terminal.create.tooltip"))).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.terminal.check"), button -> press(TerminalMenu.BUTTON_CHECK))
-                .bounds(leftPos + CRT_X + 72, topPos + 134, 68, 14)
+                .bounds(leftPos + CRT_X + 72, topPos + 142, 68, 14)
                 .tooltip(Tooltip.create(Component.translatable("gui.blueprintforge.terminal.check.tooltip"))).build());
     }
 
@@ -99,7 +99,7 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         graphics.fill(x + 1, y + 1, x + imageWidth - 1, y + imageHeight - 1, BRASS);
         graphics.fill(x + 3, y + 3, x + imageWidth - 3, y + imageHeight - 3, ANDESITE);
         graphics.fill(x + 3, y + 3, x + imageWidth - 3, y + 4, ANDESITE_LIGHT);
-        graphics.fill(x + 3, y + 156, x + imageWidth - 3, y + 157, ANDESITE_DARK);
+        graphics.fill(x + 3, y + 164, x + imageWidth - 3, y + 165, ANDESITE_DARK);
 
         // Title plate with the lamps to its right.
         graphics.fill(x + 5, y + 5, x + 118, y + 19, BRASS_DARK);
@@ -165,9 +165,8 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
             } else {
                 graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.steps", menu.data(TerminalBlockEntity.DATA_STEPS)), x, y, AMBER, false);
                 y += step;
-                graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.op.press", menu.data(TerminalBlockEntity.DATA_PRESS)), x + 6, y, AMBER, false);
-                y += step;
-                graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.op.blast", menu.data(TerminalBlockEntity.DATA_BLAST)), x + 6, y, AMBER, false);
+                graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.ops",
+                        menu.data(TerminalBlockEntity.DATA_PRESS), menu.data(TerminalBlockEntity.DATA_BLAST)), x + 6, y, AMBER, false);
                 y += step;
                 if (menu.data(TerminalBlockEntity.DATA_OTHER) > 0) {
                     graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.op.other", menu.data(TerminalBlockEntity.DATA_OTHER)), x + 6, y, AMBER, false);
