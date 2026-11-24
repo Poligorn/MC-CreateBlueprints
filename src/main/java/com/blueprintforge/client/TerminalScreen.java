@@ -3,8 +3,11 @@ package com.blueprintforge.client;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.blueprintforge.compat.createapi.SpikeLine;
 import com.blueprintforge.item.ResearchBlueprintItem;
+import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.research.ResearchBlueprint;
+import com.blueprintforge.research.ResearchRun;
 import com.blueprintforge.terminal.LineScanner;
 import com.blueprintforge.terminal.TerminalBlockEntity;
 import com.blueprintforge.terminal.TerminalMenu;
@@ -19,6 +22,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Terminal screen in the "Create computer" style of mockup v2, drawn in code: andesite body, brass trim, a dark amber
@@ -48,25 +52,25 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
     private static final int CRT_X = 30;
     private static final int CRT_Y = 22;
     private static final int CRT_W = 140;
-    private static final int CRT_H = 108;
+    private static final int CRT_H = 116;
 
     public TerminalScreen(TerminalMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         imageWidth = 176;
-        imageHeight = 240;
+        imageHeight = 248;
         titleLabelX = 8;
         titleLabelY = 7;
-        inventoryLabelY = 151;
+        inventoryLabelY = 159;
     }
 
     @Override
     protected void init() {
         super.init();
         addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.terminal.create"), button -> press(TerminalMenu.BUTTON_CREATE))
-                .bounds(leftPos + CRT_X, topPos + 134, 68, 14)
+                .bounds(leftPos + CRT_X, topPos + 142, 68, 14)
                 .tooltip(Tooltip.create(Component.translatable("gui.blueprintforge.terminal.create.tooltip"))).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.blueprintforge.terminal.check"), button -> press(TerminalMenu.BUTTON_CHECK))
-                .bounds(leftPos + CRT_X + 72, topPos + 134, 68, 14)
+                .bounds(leftPos + CRT_X + 72, topPos + 142, 68, 14)
                 .tooltip(Tooltip.create(Component.translatable("gui.blueprintforge.terminal.check.tooltip"))).build());
     }
 
@@ -95,7 +99,7 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         graphics.fill(x + 1, y + 1, x + imageWidth - 1, y + imageHeight - 1, BRASS);
         graphics.fill(x + 3, y + 3, x + imageWidth - 3, y + imageHeight - 3, ANDESITE);
         graphics.fill(x + 3, y + 3, x + imageWidth - 3, y + 4, ANDESITE_LIGHT);
-        graphics.fill(x + 3, y + 156, x + imageWidth - 3, y + 157, ANDESITE_DARK);
+        graphics.fill(x + 3, y + 164, x + imageWidth - 3, y + 165, ANDESITE_DARK);
 
         // Title plate with the lamps to its right.
         graphics.fill(x + 5, y + 5, x + 118, y + 19, BRASS_DARK);
@@ -161,9 +165,8 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
             } else {
                 graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.steps", menu.data(TerminalBlockEntity.DATA_STEPS)), x, y, AMBER, false);
                 y += step;
-                graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.op.press", menu.data(TerminalBlockEntity.DATA_PRESS)), x + 6, y, AMBER, false);
-                y += step;
-                graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.op.blast", menu.data(TerminalBlockEntity.DATA_BLAST)), x + 6, y, AMBER, false);
+                graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.ops",
+                        menu.data(TerminalBlockEntity.DATA_PRESS), menu.data(TerminalBlockEntity.DATA_BLAST)), x + 6, y, AMBER, false);
                 y += step;
                 if (menu.data(TerminalBlockEntity.DATA_OTHER) > 0) {
                     graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.op.other", menu.data(TerminalBlockEntity.DATA_OTHER)), x + 6, y, AMBER, false);
@@ -173,22 +176,41 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
             }
         }
 
-        // The last run and the warning are laid out from the bottom of the screen up, so a long line above never overlaps them.
+        // The recorded-steps hint, the last run and the warning are laid out from the bottom of the screen up, so a long line
+        // above never overlaps them.
         int percent = menu.data(TerminalBlockEntity.DATA_PERCENT);
-        Component last = percent < 0
-                ? Component.translatable("gui.blueprintforge.terminal.last.none")
-                : Component.translatable("gui.blueprintforge.terminal.last", percent,
-                        menu.data(TerminalBlockEntity.DATA_MATCHED), menu.data(TerminalBlockEntity.DATA_TOTAL));
         List<FormattedCharSequence> warning = font.split(Component.translatable("gui.blueprintforge.terminal.warning"), CRT_W - 8);
-        List<FormattedCharSequence> lastLines = font.split(last, CRT_W - 8);
-        int warningY = CRT_Y + CRT_H - 3 - warning.size() * step + 1;
-        int lastY = warningY - 3 - lastLines.size() * step;
+        int bottom = CRT_Y + CRT_H - 3 - warning.size() * step + 1;
         for (int i = 0; i < warning.size(); i++) {
-            graphics.drawString(font, warning.get(i), x, warningY + i * step, AMBER_DIM, false);
+            graphics.drawString(font, warning.get(i), x, bottom + i * step, AMBER_DIM, false);
         }
-        int lastColor = percent < 0 ? AMBER_DIM : percent >= 100 ? GREEN : AMBER;
-        for (int i = 0; i < lastLines.size(); i++) {
-            graphics.drawString(font, lastLines.get(i), x, lastY + i * step, lastColor, false);
+        if (percent >= 0) {
+            List<FormattedCharSequence> last = font.split(Component.translatable("gui.blueprintforge.terminal.last", percent,
+                    menu.data(TerminalBlockEntity.DATA_MATCHED), menu.data(TerminalBlockEntity.DATA_TOTAL)), CRT_W - 8);
+            bottom -= 3 + last.size() * step;
+            for (int i = 0; i < last.size(); i++) {
+                graphics.drawString(font, last.get(i), x, bottom + i * step, percent >= 100 ? GREEN : AMBER, false);
+            }
+        } else {
+            bottom -= 3 + step;
+            graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.last.none"), x, bottom, AMBER_DIM, false);
+        }
+        // A workpiece waiting in the return slot shows how many steps it has recorded; after a check the count of that run stays.
+        ItemStack returned = menu.getSlot(TerminalSlots.RETURN).getItem();
+        ResearchRun run = returned.get(BFComponents.RESEARCH_RUN.get());
+        int recorded = -1;
+        int steps = menu.data(TerminalBlockEntity.DATA_STEPS);
+        if (run != null && SpikeLine.isWorkpiece(returned)) {
+            recorded = SpikeLine.operationsOf(returned).size();
+            steps = run.steps() > 0 ? run.steps() : steps;
+        } else if (percent >= 0) {
+            recorded = menu.data(TerminalBlockEntity.DATA_LAST_RECORDED);
+            steps = menu.data(TerminalBlockEntity.DATA_TOTAL);
+        }
+        if (recorded >= 0) {
+            bottom -= step;
+            graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.recorded", recorded, steps), x, bottom,
+                    recorded == steps ? GREEN : AMBER, false);
         }
     }
 

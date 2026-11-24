@@ -25,7 +25,7 @@ public class TerminalMenu extends AbstractContainerMenu {
 
     public static final int[] SLOT_X = {8, 8, 8, 8};
     public static final int[] SLOT_Y = {26, 50, 82, 106};
-    public static final int INVENTORY_Y = 162;
+    public static final int INVENTORY_Y = 170;
 
     private final ContainerLevelAccess access;
     private final ContainerData data;
