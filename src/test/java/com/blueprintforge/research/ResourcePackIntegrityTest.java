@@ -77,8 +77,8 @@ class ResourcePackIntegrityTest {
         List<String> seen = new ArrayList<>();
         assertModel("blueprintforge:item/research_blueprint", seen);
         JsonArray overrides = root.getAsJsonArray("overrides");
-        // 9 approved types x 5 tiers x (original, copy)
-        assertEquals(90, overrides.size());
+        // 14 types (9 approved, 5 proposed) x 5 tiers x (original, copy)
+        assertEquals(140, overrides.size());
         int previous = 0;
         for (JsonElement element : overrides) {
             JsonObject override = element.getAsJsonObject();
@@ -87,8 +87,8 @@ class ResourcePackIntegrityTest {
             previous = variant;
             assertModel(override.get("model").getAsString(), seen);
         }
-        assertEquals(1 + 90, seen.size());
-        assertEquals(90, previous);
+        assertEquals(1 + 140, seen.size());
+        assertEquals(140, previous);
     }
 
     @Test
@@ -106,7 +106,7 @@ class ResourcePackIntegrityTest {
                 }
             }
         }
-        assertEquals(9, ResearchType.values().length);
+        assertEquals(14, ResearchType.values().length);
     }
 
     @Test

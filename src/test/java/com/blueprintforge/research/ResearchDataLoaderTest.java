@@ -189,11 +189,11 @@ class ResearchDataLoaderTest {
     }
 
     @Test
-    void everyOfficialIconTypeIsAcceptedAndNothingElse() {
+    void everyIconTypeIsAcceptedAndNothingElse() {
         for (ResearchType type : ResearchType.values()) {
             ResearchDataLoader.Result result = load(Map.of(), Map.of("t", "{\"item\": \"minecraft:iron_sword\", \"type\": \"" + type.getSerializedName() + "\"}"));
             assertEquals(type, result.targets().get(id("t")).type());
         }
-        assertEquals(9, ResearchType.values().length);
+        assertEquals(14, ResearchType.values().length);
     }
 }

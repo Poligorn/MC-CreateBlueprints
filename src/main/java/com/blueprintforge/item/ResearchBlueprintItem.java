@@ -21,6 +21,10 @@ import net.minecraft.world.item.TooltipFlag;
  * A blueprint of the November concept: one target and one tier, with an official icon picked from the component.
  */
 public class ResearchBlueprintItem extends Item {
+    /** One tier and target pair, for listing every blueprint the datapack allows. */
+    public record Entry(ResourceLocation tierId, ResearchTier tier, ResourceLocation targetId, ResearchTarget target) {
+    }
+
     public ResearchBlueprintItem(Properties properties) {
         super(properties);
     }

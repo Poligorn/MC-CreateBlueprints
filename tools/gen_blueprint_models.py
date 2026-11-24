@@ -9,7 +9,8 @@ with the types in the order of the ResearchType enum.
 import json
 import pathlib
 
-TYPES = ["sword", "pickaxe", "axe", "shovel", "hoe", "helmet", "chestplate", "leggings", "boots"]
+TYPES = ["sword", "pickaxe", "axe", "shovel", "hoe", "helmet", "chestplate", "leggings", "boots",
+         "bow", "crossbow", "trident", "shield", "mace"]
 ASSETS = pathlib.Path(__file__).resolve().parent.parent / "src/main/resources/assets/blueprintforge"
 MODELS = ASSETS / "models/item"
 

@@ -543,6 +543,306 @@
         "blueprintforge:variant": 90
       },
       "model": "blueprintforge:item/blueprint/boots_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 91
+      },
+      "model": "blueprintforge:item/blueprint/bow_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 92
+      },
+      "model": "blueprintforge:item/blueprint/bow_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 93
+      },
+      "model": "blueprintforge:item/blueprint/bow_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 94
+      },
+      "model": "blueprintforge:item/blueprint/bow_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 95
+      },
+      "model": "blueprintforge:item/blueprint/bow_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 96
+      },
+      "model": "blueprintforge:item/blueprint/bow_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 97
+      },
+      "model": "blueprintforge:item/blueprint/bow_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 98
+      },
+      "model": "blueprintforge:item/blueprint/bow_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 99
+      },
+      "model": "blueprintforge:item/blueprint/bow_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 100
+      },
+      "model": "blueprintforge:item/blueprint/bow_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 101
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 102
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 103
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 104
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 105
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 106
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 107
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 108
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 109
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 110
+      },
+      "model": "blueprintforge:item/blueprint/crossbow_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 111
+      },
+      "model": "blueprintforge:item/blueprint/trident_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 112
+      },
+      "model": "blueprintforge:item/blueprint/trident_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 113
+      },
+      "model": "blueprintforge:item/blueprint/trident_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 114
+      },
+      "model": "blueprintforge:item/blueprint/trident_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 115
+      },
+      "model": "blueprintforge:item/blueprint/trident_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 116
+      },
+      "model": "blueprintforge:item/blueprint/trident_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 117
+      },
+      "model": "blueprintforge:item/blueprint/trident_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 118
+      },
+      "model": "blueprintforge:item/blueprint/trident_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 119
+      },
+      "model": "blueprintforge:item/blueprint/trident_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 120
+      },
+      "model": "blueprintforge:item/blueprint/trident_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 121
+      },
+      "model": "blueprintforge:item/blueprint/shield_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 122
+      },
+      "model": "blueprintforge:item/blueprint/shield_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 123
+      },
+      "model": "blueprintforge:item/blueprint/shield_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 124
+      },
+      "model": "blueprintforge:item/blueprint/shield_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 125
+      },
+      "model": "blueprintforge:item/blueprint/shield_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 126
+      },
+      "model": "blueprintforge:item/blueprint/shield_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 127
+      },
+      "model": "blueprintforge:item/blueprint/shield_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 128
+      },
+      "model": "blueprintforge:item/blueprint/shield_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 129
+      },
+      "model": "blueprintforge:item/blueprint/shield_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 130
+      },
+      "model": "blueprintforge:item/blueprint/shield_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 131
+      },
+      "model": "blueprintforge:item/blueprint/mace_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 132
+      },
+      "model": "blueprintforge:item/blueprint/mace_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 133
+      },
+      "model": "blueprintforge:item/blueprint/mace_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 134
+      },
+      "model": "blueprintforge:item/blueprint/mace_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 135
+      },
+      "model": "blueprintforge:item/blueprint/mace_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 136
+      },
+      "model": "blueprintforge:item/blueprint/mace_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 137
+      },
+      "model": "blueprintforge:item/blueprint/mace_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 138
+      },
+      "model": "blueprintforge:item/blueprint/mace_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 139
+      },
+      "model": "blueprintforge:item/blueprint/mace_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 140
+      },
+      "model": "blueprintforge:item/blueprint/mace_copy_t5"
     }
   ]
 }

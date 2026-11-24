@@ -1,6 +1,8 @@
 package com.blueprintforge.registry;
 
-import java.util.TreeMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Supplier;
 
 import com.blueprintforge.BlueprintForge;
@@ -14,9 +16,9 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * The terminal and one original blueprint per loaded tier and target, so a modpack author sees their datapack rather
- * than a hardcoded list. Copies are not offered here (0.2); /give makes them. The client knows the research data only
- * when it shares a JVM with the server: sync is 0.3.
+ * The terminal and every blueprint the datapack allows: an original and a copy for each tier and target, grouped by type
+ * and ordered by tier. The seed is given when a stack reaches an inventory. The client knows the research data only when
+ * it shares a JVM with the server: sync is 0.3.
  */
 public final class BFCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, BlueprintForge.MOD_ID);
@@ -26,9 +28,17 @@ public final class BFCreativeTabs {
             .icon(() -> new ItemStack(BFItems.TERMINAL.get()))
             .displayItems((parameters, output) -> {
                 output.accept(BFItems.TERMINAL.get());
-                new TreeMap<>(ResearchRegistry.tiers()).forEach((tierId, tier) ->
-                        new TreeMap<>(ResearchRegistry.targets()).forEach((targetId, target) ->
-                                output.accept(ResearchBlueprintItem.create(tierId, tier, targetId, target, false))));
+                List<ResearchBlueprintItem.Entry> entries = new ArrayList<>();
+                ResearchRegistry.tiers().forEach((tierId, tier) -> ResearchRegistry.targets().forEach((targetId, target) ->
+                        entries.add(new ResearchBlueprintItem.Entry(tierId, tier, targetId, target))));
+                entries.sort(Comparator.comparingInt((ResearchBlueprintItem.Entry e) -> e.target().type().ordinal())
+                        .thenComparingInt(e -> e.tier().spriteTier())
+                        .thenComparing(e -> e.tierId())
+                        .thenComparing(e -> e.targetId()));
+                for (ResearchBlueprintItem.Entry entry : entries) {
+                    output.accept(ResearchBlueprintItem.create(entry.tierId(), entry.tier(), entry.targetId(), entry.target(), false));
+                    output.accept(ResearchBlueprintItem.create(entry.tierId(), entry.tier(), entry.targetId(), entry.target(), true));
+                }
             })
             .build());
 

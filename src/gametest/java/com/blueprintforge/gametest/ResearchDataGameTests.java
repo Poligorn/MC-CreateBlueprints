@@ -31,10 +31,10 @@ public final class ResearchDataGameTests {
 
     @GameTest(template = EMPTY)
     public static void researchTiersAndTargetsLoadFromTheDatapack(GameTestHelper helper) {
-        for (String tier : List.of("t1", "t2", "t3")) {
+        for (String tier : List.of("t1", "t2", "t3", "t4", "t5")) {
             helper.assertTrue(ResearchRegistry.tier(id(tier)).isPresent(), "tier " + tier + " must load");
         }
-        for (String target : List.of("iron_sword", "iron_pickaxe", "iron_chestplate")) {
+        for (String target : List.of("iron_sword", "iron_pickaxe", "iron_chestplate", "bow", "crossbow", "trident", "shield", "mace")) {
             helper.assertTrue(ResearchRegistry.target(id(target)).isPresent(), "target " + target + " must load");
         }
         int t1 = ResearchRegistry.tier(id("t1")).orElseThrow().attemptCost().deployers().max();
