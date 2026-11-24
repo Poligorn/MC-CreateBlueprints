@@ -17,7 +17,6 @@ import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
-import com.blueprintforge.data.BlueprintDataLoader;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
@@ -185,8 +184,8 @@ class ResearchDataLoaderTest {
 
     @Test
     void brokenSyntaxIsReportedByTheParserNotSwallowed() {
-        assertThrows(RuntimeException.class, () -> BlueprintDataLoader.parseJson(new StringReader("{\"item\": ")));
-        assertThrows(RuntimeException.class, () -> BlueprintDataLoader.parseJson(new StringReader("")));
+        assertThrows(RuntimeException.class, () -> ResearchDataLoader.parseJson(new StringReader("{\"item\": ")));
+        assertThrows(RuntimeException.class, () -> ResearchDataLoader.parseJson(new StringReader("")));
     }
 
     @Test

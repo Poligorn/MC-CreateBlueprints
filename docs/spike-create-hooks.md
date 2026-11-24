@@ -58,7 +58,7 @@ Create `6.0.10-281`, NeoForge `21.1.252`, Minecraft 1.21.1.
 
 ## Находка про сборку
 
-В пакете `com.blueprintforge.compat.create` (и подпакетах) все классы принадлежат миксин-конфигу `blueprintforge.mixins.json`. Любой обычный класс там, на который ссылается код мода, роняет загрузку: `IllegalClassLoadError ... is in a defined mixin package ... cannot be referenced directly`. Поэтому хуки на публичном API лежат в соседнем пакете `com.blueprintforge.compat.createapi`, а `compat.create` остаётся только для миксинов. Это отступление от слов «пакет `compat.create`» в `CLAUDE.md`, там имелись в виду миксины.
+На момент спайка в пакете `com.blueprintforge.compat.create` все классы принадлежали миксин-конфигу прототипа Архива, и любой обычный класс там ронял загрузку (`IllegalClassLoadError ... is in a defined mixin package`). Поэтому хуки лежат в `com.blueprintforge.compat.createapi`. Прототип Архива и его миксины потом убраны, но пакет остался как есть: миксинов в моде сейчас нет.
 
 Второе наблюдение: однажды `./gradlew runGameTestServer` завершился `BUILD SUCCESSFUL`, хотя в логе был `Mod loading has failed` (как раз из-за этой ошибки). Провал отдельного теста даёт код 1, а падение загрузки мода — не обязательно. Для вывода «зелёное» нужна строка `All N required tests passed` в логе.
 
