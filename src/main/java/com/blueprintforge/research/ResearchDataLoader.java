@@ -15,7 +15,7 @@ import java.util.function.Predicate;
 import org.slf4j.Logger;
 
 import com.blueprintforge.BlueprintForge;
-import com.blueprintforge.data.BlueprintDataLoader;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -30,6 +30,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
+import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 
 /**
@@ -42,6 +43,7 @@ public final class ResearchDataLoader extends SimplePreparableReloadListener<Res
     public static final String TARGET_DIR = "research_target";
 
     private static final Logger LOGGER = BlueprintForge.LOGGER;
+    private static final Gson GSON = new Gson();
     private static volatile List<String> lastErrors = List.of();
 
     private final HolderLookup.Provider registries;
@@ -83,7 +85,7 @@ public final class ResearchDataLoader extends SimplePreparableReloadListener<Res
         for (Map.Entry<ResourceLocation, Resource> entry : converter.listMatchingResources(resourceManager).entrySet()) {
             ResourceLocation file = entry.getKey();
             try (Reader reader = entry.getValue().openAsReader()) {
-                out.put(converter.fileToId(file), BlueprintDataLoader.parseJson(reader));
+                out.put(converter.fileToId(file), parseJson(reader));
             } catch (IOException | RuntimeException e) {
                 String error = "Broken file data/" + file.getNamespace() + "/" + file.getPath()
                         + " in pack '" + entry.getValue().sourcePackId() + "': " + e.getMessage();
@@ -92,6 +94,14 @@ public final class ResearchDataLoader extends SimplePreparableReloadListener<Res
             }
         }
         return out;
+    }
+
+    public static JsonElement parseJson(Reader reader) {
+        JsonElement element = GsonHelper.fromNullableJson(GSON, reader, JsonElement.class, false);
+        if (element == null) {
+            throw new IllegalStateException("file is empty");
+        }
+        return element;
     }
 
     /** Pure part of the load, kept free of game state so it can be unit tested. */

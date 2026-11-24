@@ -19,7 +19,6 @@ import net.minecraft.world.item.TooltipFlag;
 
 /**
  * A blueprint of the November concept: one target and one tier, with an official icon picked from the component.
- * Separate from the older {@link BlueprintItem} of the Archive prototype, which stays as it is.
  */
 public class ResearchBlueprintItem extends Item {
     public ResearchBlueprintItem(Properties properties) {
