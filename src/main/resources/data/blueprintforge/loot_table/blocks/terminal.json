@@ -8,7 +8,12 @@
         { "type": "minecraft:item", "name": "blueprintforge:terminal" }
       ],
       "conditions": [
-        { "condition": "minecraft:survives_explosion" }
+        { "condition": "minecraft:survives_explosion" },
+        {
+          "condition": "minecraft:block_state_property",
+          "block": "blueprintforge:terminal",
+          "properties": { "half": "lower" }
+        }
       ]
     }
   ]

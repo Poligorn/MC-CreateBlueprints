@@ -7,13 +7,15 @@ import com.blueprintforge.registry.BFComponents;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-/** The four slots of a terminal and what each accepts; shared by the block entity and the client-side menu. */
+/**
+ * The three slots of a terminal and what each accepts; shared by the block entity and the client-side menu.
+ * The item slot takes the target item and, later, the workpiece that comes back from the line.
+ */
 public class TerminalSlots extends ItemStackHandler {
     public static final int BLUEPRINT = 0;
-    public static final int TARGET = 1;
+    public static final int ITEM = 1;
     public static final int OUTPUT = 2;
-    public static final int RETURN = 3;
-    public static final int COUNT = 4;
+    public static final int COUNT = 3;
 
     public TerminalSlots() {
         super(COUNT);
@@ -23,9 +25,8 @@ public class TerminalSlots extends ItemStackHandler {
     public boolean isItemValid(int slot, ItemStack stack) {
         return switch (slot) {
             case BLUEPRINT -> ResearchBlueprintItem.data(stack).isPresent();
-            // The terminal takes only the item of the blueprint it holds; the check lives in the block entity, which knows the blueprint.
-            case TARGET -> !stack.isEmpty();
-            case RETURN -> SpikeLine.isWorkpiece(stack) && stack.has(BFComponents.RESEARCH_RUN.get());
+            // The block entity narrows this to the target item of the blueprint it holds; it knows the blueprint.
+            case ITEM -> !stack.isEmpty() && (!SpikeLine.isWorkpiece(stack) || stack.has(BFComponents.RESEARCH_RUN.get()));
             default -> false;
         };
     }

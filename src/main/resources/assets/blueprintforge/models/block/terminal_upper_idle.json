@@ -1,0 +1,189 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "lower_front": "blueprintforge:block/terminal/lower_front",
+    "lower_side": "blueprintforge:block/terminal/lower_side",
+    "lower_side_out": "blueprintforge:block/terminal/lower_side_out",
+    "lower_back": "blueprintforge:block/terminal/lower_back",
+    "lower_top": "blueprintforge:block/terminal/lower_top",
+    "lower_bottom": "blueprintforge:block/terminal/lower_bottom",
+    "upper_top": "blueprintforge:block/terminal/upper_top",
+    "upper_back": "blueprintforge:block/terminal/upper_back",
+    "desk_front": "blueprintforge:block/terminal/desk_front",
+    "east_upper": "blueprintforge:block/terminal/east_upper",
+    "west_upper": "blueprintforge:block/terminal/west_upper",
+    "screen_on": "blueprintforge:block/terminal/screen_on",
+    "screen": "blueprintforge:block/terminal/screen_on",
+    "particle": "blueprintforge:block/terminal/lower_side"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#east_upper",
+          "uv": [
+            16,
+            0,
+            0,
+            16
+          ],
+          "cullface": "east"
+        },
+        "west": {
+          "texture": "#west_upper",
+          "cullface": "west"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        2,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#desk_front",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
+        },
+        "up": {
+          "texture": "#lower_top",
+          "rotation": 180
+        },
+        "south": {
+          "texture": "#upper_back",
+          "uv": [
+            0,
+            14,
+            16,
+            16
+          ],
+          "cullface": "south"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        2,
+        13
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "south": {
+          "texture": "#upper_back",
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ],
+          "cullface": "south"
+        },
+        "up": {
+          "texture": "#upper_top",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ],
+          "cullface": "up"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        2.1,
+        8.1
+      ],
+      "to": [
+        16,
+        16,
+        10.1
+      ],
+      "rotation": {
+        "origin": [
+          8,
+          2.1,
+          8.1
+        ],
+        "axis": "x",
+        "angle": 22.5
+      },
+      "faces": {
+        "north": {
+          "texture": "#screen",
+          "uv": [
+            0,
+            1,
+            16,
+            15
+          ]
+        },
+        "south": {
+          "texture": "#upper_back",
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ]
+        },
+        "up": {
+          "texture": "#upper_top",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
+        },
+        "east": {
+          "texture": "#east_upper",
+          "uv": [
+            10,
+            0,
+            8,
+            14
+          ]
+        },
+        "west": {
+          "texture": "#west_upper",
+          "uv": [
+            8,
+            0,
+            10,
+            14
+          ]
+        }
+      }
+    }
+  ]
+}

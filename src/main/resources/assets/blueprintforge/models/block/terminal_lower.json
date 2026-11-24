@@ -1,0 +1,56 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "lower_front": "blueprintforge:block/terminal/lower_front",
+    "lower_side": "blueprintforge:block/terminal/lower_side",
+    "lower_side_out": "blueprintforge:block/terminal/lower_side_out",
+    "lower_back": "blueprintforge:block/terminal/lower_back",
+    "lower_top": "blueprintforge:block/terminal/lower_top",
+    "lower_bottom": "blueprintforge:block/terminal/lower_bottom",
+    "upper_top": "blueprintforge:block/terminal/upper_top",
+    "upper_back": "blueprintforge:block/terminal/upper_back",
+    "desk_front": "blueprintforge:block/terminal/desk_front",
+    "east_upper": "blueprintforge:block/terminal/east_upper",
+    "west_upper": "blueprintforge:block/terminal/west_upper",
+    "screen_on": "blueprintforge:block/terminal/screen_on",
+    "screen": "blueprintforge:block/terminal/screen_on",
+    "particle": "blueprintforge:block/terminal/lower_side"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#lower_front",
+          "cullface": "north"
+        },
+        "east": {
+          "texture": "#lower_side_out",
+          "cullface": "east"
+        },
+        "south": {
+          "texture": "#lower_back",
+          "cullface": "south"
+        },
+        "west": {
+          "texture": "#lower_side",
+          "cullface": "west"
+        },
+        "down": {
+          "texture": "#lower_bottom",
+          "cullface": "down"
+        }
+      }
+    }
+  ]
+}

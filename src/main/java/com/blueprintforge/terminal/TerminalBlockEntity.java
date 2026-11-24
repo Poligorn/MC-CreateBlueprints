@@ -68,7 +68,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     private final TerminalSlots inventory = new TerminalSlots() {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            if (slot == TARGET) {
+            if (slot == ITEM && !SpikeLine.isWorkpiece(stack)) {
                 return acceptsTarget(stack);
             }
             return super.isItemValid(slot, stack);
@@ -199,12 +199,16 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void updateScreenState() {
-        TerminalScreenState wanted = blueprint()
-                .map(bp -> bp.spriteTier() >= 4 ? TerminalScreenState.ACTIVE_T4 : TerminalScreenState.ACTIVE_T2)
-                .orElse(TerminalScreenState.IDLE);
-        BlockState state = getBlockState();
-        if (level != null && state.getValue(TerminalBlock.SCREEN) != wanted) {
-            level.setBlock(worldPosition, state.setValue(TerminalBlock.SCREEN, wanted), 3);
+        TerminalScreenState wanted = blueprint().isPresent() ? TerminalScreenState.ACTIVE : TerminalScreenState.IDLE;
+        if (level == null) {
+            return;
+        }
+        // Both halves carry the state: the upper one draws the screen.
+        for (BlockPos pos : new BlockPos[] {worldPosition, worldPosition.above()}) {
+            BlockState state = level.getBlockState(pos);
+            if (state.is(getBlockState().getBlock()) && state.getValue(TerminalBlock.SCREEN) != wanted) {
+                level.setBlock(pos, state.setValue(TerminalBlock.SCREEN, wanted), 3);
+            }
         }
     }
 
@@ -269,6 +273,15 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         }
     }
 
+    /**
+     * The one button of the screen: a workpiece in the item slot is scored, anything else is turned into a workpiece.
+     * @return {@code null} on success, otherwise why nothing happened
+     */
+    @Nullable
+    public Component performAction() {
+        return SpikeLine.isWorkpiece(inventory.getStackInSlot(TerminalSlots.ITEM)) ? checkRun() : createWorkpiece();
+    }
+
     /** @return {@code null} on success, otherwise why nothing happened */
     @Nullable
     public Component createWorkpiece() {
@@ -282,8 +295,8 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         if (chain().isEmpty()) {
             return Component.translatable("gui.blueprintforge.terminal.error.no_chain");
         }
-        ItemStack target = inventory.getStackInSlot(TerminalSlots.TARGET);
-        if (target.isEmpty()) {
+        ItemStack target = inventory.getStackInSlot(TerminalSlots.ITEM);
+        if (target.isEmpty() || SpikeLine.isWorkpiece(target)) {
             return Component.translatable("gui.blueprintforge.terminal.error.no_target");
         }
         if (!inventory.getStackInSlot(TerminalSlots.OUTPUT).isEmpty()) {
@@ -294,7 +307,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         // (open question 5, temporary choice).
         ItemStack workpiece = SpikeLine.workpiece(target.copyWithCount(1));
         workpiece.set(BFComponents.RESEARCH_RUN.get(), new ResearchRun(bp.tier(), bp.target(), bp.item(), bp.seed().orElseThrow(), bp.generatorVersion(), chain().size()));
-        inventory.setStackInSlot(TerminalSlots.TARGET, ItemStack.EMPTY);
+        inventory.setStackInSlot(TerminalSlots.ITEM, ItemStack.EMPTY);
         inventory.setStackInSlot(TerminalSlots.OUTPUT, workpiece);
         return null;
     }
@@ -302,7 +315,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     /** @return {@code null} on success, otherwise why nothing happened */
     @Nullable
     public Component checkRun() {
-        ItemStack workpiece = inventory.getStackInSlot(TerminalSlots.RETURN);
+        ItemStack workpiece = inventory.getStackInSlot(TerminalSlots.ITEM);
         ResearchRun run = workpiece.get(BFComponents.RESEARCH_RUN.get());
         if (run == null) {
             return Component.translatable("gui.blueprintforge.terminal.error.no_workpiece");
@@ -342,7 +355,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         } else {
             result = new ItemStack(BFItems.SCRAP.get());
         }
-        inventory.setStackInSlot(TerminalSlots.RETURN, ItemStack.EMPTY);
+        inventory.setStackInSlot(TerminalSlots.ITEM, ItemStack.EMPTY);
         inventory.setStackInSlot(TerminalSlots.OUTPUT, result);
         setChanged();
         return null;

@@ -31,6 +31,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -53,7 +55,9 @@ public final class TerminalGameTests {
     }
 
     private static TerminalBlockEntity terminal(GameTestHelper helper) {
-        helper.setBlock(TERMINAL, BFBlocks.TERMINAL.get().defaultBlockState().setValue(TerminalBlock.FACING, Direction.NORTH));
+        BlockState lower = BFBlocks.TERMINAL.get().defaultBlockState().setValue(TerminalBlock.FACING, Direction.NORTH);
+        helper.setBlock(TERMINAL, lower);
+        helper.setBlock(TERMINAL.above(), lower.setValue(TerminalBlock.HALF, DoubleBlockHalf.UPPER));
         return helper.getBlockEntity(TERMINAL);
     }
 
@@ -72,7 +76,7 @@ public final class TerminalGameTests {
 
     /** A workpiece out of the terminal, with the log filled in by {@code operations}. */
     private static ItemStack runWith(GameTestHelper helper, TerminalBlockEntity be, List<String> operations) {
-        helper.assertTrue(be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false).isEmpty(), "the target must fit");
+        helper.assertTrue(be.inventory().insertItem(TerminalSlots.ITEM, pickaxe(), false).isEmpty(), "the target must fit");
         helper.assertTrue(be.createWorkpiece() == null, "the workpiece must be issued");
         ItemStack workpiece = be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false);
         helper.assertFalse(workpiece.isEmpty(), "the workpiece must be in the output");
@@ -95,7 +99,7 @@ public final class TerminalGameTests {
         ResearchBlueprint stored = be.inventory().getStackInSlot(TerminalSlots.BLUEPRINT).get(BFComponents.RESEARCH_BLUEPRINT.get());
         helper.assertTrue(stored.seed().isPresent(), "the seed is assigned on the first insertion");
         long seed = stored.seed().get();
-        helper.assertTrue(helper.getBlockState(TERMINAL).getValue(TerminalBlock.SCREEN) == TerminalScreenState.ACTIVE_T2, "tier 2 shows the T3 screen");
+        helper.assertTrue(helper.getBlockState(TERMINAL).getValue(TerminalBlock.SCREEN) == TerminalScreenState.ACTIVE, "a blueprint lights the screen");
         int steps = be.chain().size();
         ResearchTier tier = ResearchRegistry.tier(T3).orElseThrow();
         helper.assertTrue(steps >= tier.steps().min() && steps <= tier.steps().max(), "steps within the tier range, got " + steps);
@@ -115,18 +119,18 @@ public final class TerminalGameTests {
     @GameTest(template = EMPTY)
     public static void terminalTakesOnlyTheBlueprintsItemAndSpendsItForAWorkpiece(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
-        helper.assertFalse(be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false).isEmpty(), "no target slot without a blueprint");
+        helper.assertFalse(be.inventory().insertItem(TerminalSlots.ITEM, pickaxe(), false).isEmpty(), "no target slot without a blueprint");
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.BLUEPRINT, new ItemStack(Items.PAPER), false).isEmpty(), "only blueprints go in the blueprint slot");
         insertBlueprint(helper, be, T3);
-        helper.assertFalse(be.inventory().insertItem(TerminalSlots.TARGET, new ItemStack(Items.IRON_SWORD), false).isEmpty(), "a sword is not this blueprint's target");
+        helper.assertFalse(be.inventory().insertItem(TerminalSlots.ITEM, new ItemStack(Items.IRON_SWORD), false).isEmpty(), "a sword is not this blueprint's target");
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.OUTPUT, pickaxe(), false).isEmpty(), "the output slot takes nothing from outside");
 
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false);
+        be.inventory().insertItem(TerminalSlots.ITEM, pickaxe(), false);
         TerminalMenu menu = new TerminalMenu(1, player.getInventory(), be);
-        helper.assertTrue(menu.clickMenuButton(player, TerminalMenu.BUTTON_CREATE), "the button is handled");
+        helper.assertTrue(menu.clickMenuButton(player, TerminalMenu.BUTTON_ACTION), "the button is handled");
 
-        helper.assertTrue(be.inventory().getStackInSlot(TerminalSlots.TARGET).isEmpty(), "the target item is spent when the workpiece is issued");
+        helper.assertTrue(be.inventory().getStackInSlot(TerminalSlots.ITEM).isEmpty(), "the target item is spent when the workpiece is issued");
         ItemStack workpiece = be.inventory().getStackInSlot(TerminalSlots.OUTPUT);
         helper.assertTrue(workpiece.is(Items.IRON_PICKAXE) && SpikeLine.isWorkpiece(workpiece), "the workpiece is the target item with a log");
         helper.assertTrue(SpikeLine.operationsOf(workpiece).isEmpty(), "the log starts empty");
@@ -135,13 +139,15 @@ public final class TerminalGameTests {
         helper.assertTrue(run != null && run.seed() == stored.seed().orElseThrow() && run.tier().equals(T3), "the workpiece remembers tier and seed");
         helper.assertTrue(run.steps() == be.chain().size(), "the workpiece knows how long its chain is, the M of 'N of M'");
 
-        // The workpiece is the target item with a log: it must not be accepted as a fresh target.
-        helper.assertFalse(be.inventory().insertItem(TerminalSlots.TARGET, workpiece.copy(), false).isEmpty(), "a workpiece is refused by the target slot");
+        // The returned workpiece shares the item slot with the target, but is never taken for a fresh target.
+        helper.assertTrue(be.inventory().insertItem(TerminalSlots.ITEM, workpiece.copy(), false).isEmpty(), "a workpiece fits the item slot");
+        helper.assertTrue(be.createWorkpiece() != null, "a workpiece in the item slot is not a target");
+        be.inventory().extractItem(TerminalSlots.ITEM, 1, false);
 
         // A second workpiece cannot be issued while the first sits in the output.
-        be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false);
+        be.inventory().insertItem(TerminalSlots.ITEM, pickaxe(), false);
         helper.assertTrue(be.createWorkpiece() != null, "a busy output refuses a second workpiece");
-        helper.assertFalse(be.inventory().getStackInSlot(TerminalSlots.TARGET).isEmpty(), "and does not spend the target");
+        helper.assertFalse(be.inventory().getStackInSlot(TerminalSlots.ITEM).isEmpty(), "and does not spend the target");
         helper.succeed();
     }
 
@@ -153,7 +159,7 @@ public final class TerminalGameTests {
 
         // Perfect run: the log equals the chain.
         ItemStack perfect = runWith(helper, be, chain);
-        helper.assertTrue(be.inventory().insertItem(TerminalSlots.RETURN, perfect, false).isEmpty(), "the workpiece goes into the return slot");
+        helper.assertTrue(be.inventory().insertItem(TerminalSlots.ITEM, perfect, false).isEmpty(), "the workpiece goes into the return slot");
         helper.assertTrue(be.checkRun() == null, "the run is checked");
         ItemStack reward = be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false);
         helper.assertTrue(reward.is(Items.IRON_PICKAXE) && !SpikeLine.isWorkpiece(reward), "100% gives the target item (placeholder for the enhanced one)");
@@ -164,14 +170,14 @@ public final class TerminalGameTests {
                 "the result has a gold name");
         helper.assertTrue(reward.get(DataComponents.LORE) != null && reward.get(DataComponents.LORE).lines().size() == 1,
                 "the result names its tier in one lore line");
-        helper.assertTrue(be.inventory().getStackInSlot(TerminalSlots.RETURN).isEmpty(), "the workpiece is spent");
+        helper.assertTrue(be.inventory().getStackInSlot(TerminalSlots.ITEM).isEmpty(), "the workpiece is spent");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == 100, "last run is 100%");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_MATCHED) == chain.size() && be.data.get(TerminalBlockEntity.DATA_TOTAL) == chain.size(), "all steps matched");
 
         // Wrong run: every step is a press, but the chain has at least one blast.
         List<String> wrong = chain.stream().map(step -> SpikeLine.PRESS).toList();
         ItemStack failed = runWith(helper, be, wrong);
-        be.inventory().insertItem(TerminalSlots.RETURN, failed, false);
+        be.inventory().insertItem(TerminalSlots.ITEM, failed, false);
         helper.assertTrue(be.checkRun() == null, "the second run is checked");
         ItemStack junk = be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false);
         helper.assertTrue(junk.is(BFItems.SCRAP.get()), "anything but 100% gives scrap");
@@ -189,7 +195,7 @@ public final class TerminalGameTests {
         insertBlueprint(helper, be, T3);
         List<String> chain = chainOf(be);
 
-        be.inventory().insertItem(TerminalSlots.RETURN, runWith(helper, be, List.of()), false);
+        be.inventory().insertItem(TerminalSlots.ITEM, runWith(helper, be, List.of()), false);
         helper.assertTrue(be.checkRun() == null, "an empty log is still a run");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == 0, "no recorded steps is 0%");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_LAST_RECORDED) == 0, "and no recorded steps is reported as 0");
@@ -197,7 +203,7 @@ public final class TerminalGameTests {
 
         List<String> longer = new java.util.ArrayList<>(chain);
         longer.add(SpikeLine.PRESS);
-        be.inventory().insertItem(TerminalSlots.RETURN, runWith(helper, be, longer), false);
+        be.inventory().insertItem(TerminalSlots.ITEM, runWith(helper, be, longer), false);
         be.checkRun();
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == 99, "every step right plus an extra one is 99%, not 100%");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_LAST_RECORDED) == chain.size() + 1, "recorded steps can exceed the chain: 'N of M' shows it");
@@ -209,7 +215,7 @@ public final class TerminalGameTests {
     public static void theOutputCanBeTakenOnlyFromTheBrassPortSide(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
         insertBlueprint(helper, be, T3);
-        be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false);
+        be.inventory().insertItem(TerminalSlots.ITEM, pickaxe(), false);
         be.createWorkpiece();
 
         BlockPos pos = helper.absolutePos(TERMINAL);
@@ -259,10 +265,37 @@ public final class TerminalGameTests {
     }
 
     @GameTest(template = EMPTY)
+    public static void theTerminalIsTwoBlocksTallAndBreaksAsOne(GameTestHelper helper) {
+        TerminalBlockEntity be = terminal(helper);
+        insertBlueprint(helper, be, T3);
+        helper.assertTrue(helper.getBlockState(TERMINAL.above()).getValue(TerminalBlock.SCREEN) == TerminalScreenState.ACTIVE, "the upper half shows the screen state too");
+        helper.assertTrue(helper.getLevel().getBlockEntity(helper.absolutePos(TERMINAL.above())) == null, "only the lower half holds the block entity");
+        helper.destroyBlock(TERMINAL.above());
+        helper.assertTrue(helper.getBlockState(TERMINAL).isAir(), "breaking the upper half removes the lower one");
+        long blueprints = helper.getEntities(net.minecraft.world.entity.EntityType.ITEM, TERMINAL, 3.0).stream()
+                .filter(e -> e.getItem().is(BFItems.RESEARCH_BLUEPRINT.get())).count();
+        helper.assertTrue(blueprints == 1, "the contents drop exactly once, got " + blueprints);
+        long terminals = helper.getEntities(net.minecraft.world.entity.EntityType.ITEM, TERMINAL, 3.0).stream()
+                .filter(e -> e.getItem().is(BFItems.TERMINAL.get())).count();
+        helper.assertTrue(terminals <= 1, "one terminal item at most, got " + terminals);
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void theTerminalDoesNotFitUnderAnObstacle(GameTestHelper helper) {
+        helper.setBlock(TERMINAL.above(), Blocks.STONE);
+        BlockState placed = BFBlocks.TERMINAL.get().getStateForPlacement(new net.minecraft.world.item.context.BlockPlaceContext(
+                helper.makeMockPlayer(GameType.SURVIVAL), net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(BFItems.TERMINAL.get()),
+                new net.minecraft.world.phys.BlockHitResult(helper.absolutePos(TERMINAL).getCenter(), Direction.UP, helper.absolutePos(TERMINAL), false)));
+        helper.assertTrue(placed == null, "no terminal when the space above is taken");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
     public static void brokenTerminalDropsWhatItHolds(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
         insertBlueprint(helper, be, T3);
-        be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false);
+        be.inventory().insertItem(TerminalSlots.ITEM, pickaxe(), false);
         helper.destroyBlock(TERMINAL);
         List<ItemEntity> drops = helper.getEntities(net.minecraft.world.entity.EntityType.ITEM, TERMINAL, 3.0);
         helper.assertTrue(drops.stream().anyMatch(e -> e.getItem().is(BFItems.RESEARCH_BLUEPRINT.get())), "the blueprint is dropped");
@@ -280,9 +313,9 @@ public final class TerminalGameTests {
         be.inventory().insertItem(TerminalSlots.BLUEPRINT, stack, false);
         helper.assertTrue(be.chain().isEmpty(), "no chain for a tier that is not loaded");
         helper.assertTrue((be.data.get(TerminalBlockEntity.DATA_FLAGS) & TerminalBlockEntity.FLAG_UNKNOWN_TIER) != 0, "the screen is told the tier is unknown");
-        be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false);
+        be.inventory().insertItem(TerminalSlots.ITEM, pickaxe(), false);
         helper.assertTrue(be.createWorkpiece() != null, "no workpiece for an unknown tier");
-        helper.assertFalse(be.inventory().getStackInSlot(TerminalSlots.TARGET).isEmpty(), "and the target is kept");
+        helper.assertFalse(be.inventory().getStackInSlot(TerminalSlots.ITEM).isEmpty(), "and the target is kept");
         helper.succeed();
     }
 }

@@ -1,48 +1,63 @@
 {
   "variants": {
-    "facing=north,screen=idle": {
-      "model": "blueprintforge:block/terminal_idle"
+    "facing=north,half=lower,screen=idle": {
+      "model": "blueprintforge:block/terminal_lower"
     },
-    "facing=north,screen=active_t2": {
-      "model": "blueprintforge:block/terminal_active_t2"
+    "facing=north,half=lower,screen=active": {
+      "model": "blueprintforge:block/terminal_lower"
     },
-    "facing=north,screen=active_t4": {
-      "model": "blueprintforge:block/terminal_active_t4"
+    "facing=north,half=upper,screen=idle": {
+      "model": "blueprintforge:block/terminal_upper_idle"
     },
-    "facing=east,screen=idle": {
-      "model": "blueprintforge:block/terminal_idle",
+    "facing=north,half=upper,screen=active": {
+      "model": "blueprintforge:block/terminal_upper_active"
+    },
+    "facing=east,half=lower,screen=idle": {
+      "model": "blueprintforge:block/terminal_lower",
       "y": 90
     },
-    "facing=east,screen=active_t2": {
-      "model": "blueprintforge:block/terminal_active_t2",
+    "facing=east,half=lower,screen=active": {
+      "model": "blueprintforge:block/terminal_lower",
       "y": 90
     },
-    "facing=east,screen=active_t4": {
-      "model": "blueprintforge:block/terminal_active_t4",
+    "facing=east,half=upper,screen=idle": {
+      "model": "blueprintforge:block/terminal_upper_idle",
       "y": 90
     },
-    "facing=south,screen=idle": {
-      "model": "blueprintforge:block/terminal_idle",
+    "facing=east,half=upper,screen=active": {
+      "model": "blueprintforge:block/terminal_upper_active",
+      "y": 90
+    },
+    "facing=south,half=lower,screen=idle": {
+      "model": "blueprintforge:block/terminal_lower",
       "y": 180
     },
-    "facing=south,screen=active_t2": {
-      "model": "blueprintforge:block/terminal_active_t2",
+    "facing=south,half=lower,screen=active": {
+      "model": "blueprintforge:block/terminal_lower",
       "y": 180
     },
-    "facing=south,screen=active_t4": {
-      "model": "blueprintforge:block/terminal_active_t4",
+    "facing=south,half=upper,screen=idle": {
+      "model": "blueprintforge:block/terminal_upper_idle",
       "y": 180
     },
-    "facing=west,screen=idle": {
-      "model": "blueprintforge:block/terminal_idle",
+    "facing=south,half=upper,screen=active": {
+      "model": "blueprintforge:block/terminal_upper_active",
+      "y": 180
+    },
+    "facing=west,half=lower,screen=idle": {
+      "model": "blueprintforge:block/terminal_lower",
       "y": 270
     },
-    "facing=west,screen=active_t2": {
-      "model": "blueprintforge:block/terminal_active_t2",
+    "facing=west,half=lower,screen=active": {
+      "model": "blueprintforge:block/terminal_lower",
       "y": 270
     },
-    "facing=west,screen=active_t4": {
-      "model": "blueprintforge:block/terminal_active_t4",
+    "facing=west,half=upper,screen=idle": {
+      "model": "blueprintforge:block/terminal_upper_idle",
+      "y": 270
+    },
+    "facing=west,half=upper,screen=active": {
+      "model": "blueprintforge:block/terminal_upper_active",
       "y": 270
     }
   }

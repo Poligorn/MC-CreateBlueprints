@@ -24,7 +24,9 @@ public final class BFBlocks {
                     .mapColor(MapColor.STONE)
                     .strength(3.0F, 6.0F)
                     .sound(SoundType.METAL)
-                    .requiresCorrectToolForDrops()));
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)));
 
     @SuppressWarnings("DataFlowIssue")
     public static final Supplier<BlockEntityType<TerminalBlockEntity>> TERMINAL_ENTITY = BLOCK_ENTITIES.register("terminal",
