@@ -16,8 +16,8 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * The terminal and every blueprint the datapack allows: an original and a copy for each tier and target, grouped by type
- * and ordered by tier. The seed is given when a stack reaches an inventory. The client knows the research data only when
+ * The terminal and every blueprint the datapack allows: an original and a copy for each target (a target belongs to one
+ * tier), grouped by type and ordered by tier. The seed is given when a stack reaches an inventory. The client knows the research data only when
  * it shares a JVM with the server: sync is 0.3.
  */
 public final class BFCreativeTabs {
@@ -29,8 +29,9 @@ public final class BFCreativeTabs {
             .displayItems((parameters, output) -> {
                 output.accept(BFItems.TERMINAL.get());
                 List<ResearchBlueprintItem.Entry> entries = new ArrayList<>();
-                ResearchRegistry.tiers().forEach((tierId, tier) -> ResearchRegistry.targets().forEach((targetId, target) ->
-                        entries.add(new ResearchBlueprintItem.Entry(tierId, tier, targetId, target))));
+                // A target belongs to one tier, so each target gives one original and one copy.
+                ResearchRegistry.targets().forEach((targetId, target) -> ResearchRegistry.tier(target.tier()).ifPresent(tier ->
+                        entries.add(new ResearchBlueprintItem.Entry(target.tier(), tier, targetId, target))));
                 entries.sort(Comparator.comparingInt((ResearchBlueprintItem.Entry e) -> e.target().type().ordinal())
                         .thenComparingInt(e -> e.tier().spriteTier())
                         .thenComparing(e -> e.tierId())

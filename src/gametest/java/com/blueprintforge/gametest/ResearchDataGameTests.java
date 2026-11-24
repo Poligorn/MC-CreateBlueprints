@@ -34,12 +34,25 @@ public final class ResearchDataGameTests {
         for (String tier : List.of("t1", "t2", "t3", "t4", "t5")) {
             helper.assertTrue(ResearchRegistry.tier(id(tier)).isPresent(), "tier " + tier + " must load");
         }
-        for (String target : List.of("iron_sword", "iron_pickaxe", "iron_chestplate", "bow", "crossbow", "trident", "shield", "mace")) {
+        for (String target : List.of("sword_t1", "pickaxe_t3", "chestplate_t5", "helmet_t1", "bow_t2", "mace_t5")) {
             helper.assertTrue(ResearchRegistry.target(id(target)).isPresent(), "target " + target + " must load");
         }
         int t1 = ResearchRegistry.tier(id("t1")).orElseThrow().attemptCost().deployers().max();
         int t3 = ResearchRegistry.tier(id("t3")).orElseThrow().attemptCost().deployers().max();
         helper.assertTrue(t3 > t1, "a T3 attempt must ask for more deployers than T1");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void everyTypeHasATargetForEveryTierWithTheMaterialOfThatTier(GameTestHelper helper) {
+        String[] pickaxes = {"wooden", "golden", "iron", "diamond", "netherite"};
+        for (int tier = 1; tier <= 5; tier++) {
+            var target = ResearchRegistry.target(id("pickaxe_t" + tier)).orElseThrow(() -> new IllegalStateException("missing pickaxe target"));
+            helper.assertTrue(target.item().getPath().equals(pickaxes[tier - 1] + "_pickaxe"), "tier " + tier + " pickaxe is " + target.item());
+            helper.assertTrue(target.tier().equals(id("t" + tier)), "the target names its tier");
+        }
+        helper.assertTrue(ResearchRegistry.target(id("chestplate_t1")).orElseThrow().item().getPath().equals("leather_chestplate"), "tier 1 armor is leather");
+        helper.assertTrue(ResearchRegistry.targets().size() == 70, "70 targets, got " + ResearchRegistry.targets().size());
         helper.succeed();
     }
 
@@ -53,6 +66,12 @@ public final class ResearchDataGameTests {
         helper.assertTrue(errors.stream().anyMatch(e -> e.contains("blueprintforge_test/research_target/unknown_type.json")),
                 "unknown type must be reported: " + errors);
 
+        helper.assertTrue(errors.stream().anyMatch(e -> e.contains("blueprintforge_test/research_tier/too_long.json") && e.contains("limit of 16")),
+                "a chain over 16 steps must be reported: " + errors);
+        helper.assertTrue(errors.stream().anyMatch(e -> e.contains("blueprintforge_test/research_target/unknown_tier.json") && e.contains("unknown tier")),
+                "a target of an unknown tier must be reported: " + errors);
+        helper.assertFalse(ResearchRegistry.tier(testId("too_long")).isPresent(), "a tier over the step limit must be skipped");
+        helper.assertFalse(ResearchRegistry.target(testId("unknown_tier")).isPresent(), "a target of an unknown tier must be skipped");
         helper.assertFalse(ResearchRegistry.tier(testId("broken_syntax")).isPresent(), "broken tier must be skipped");
         helper.assertFalse(ResearchRegistry.tier(testId("reversed_steps")).isPresent(), "invalid tier must be skipped");
         helper.assertFalse(ResearchRegistry.target(testId("unknown_type")).isPresent(), "invalid target must be skipped");

@@ -6,9 +6,9 @@ import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * STUB of task 4 (seed and deterministic chain generation), just enough to drive the terminal. The format is not final:
- * it has no deployer steps and the generator version is 0. TODO(egor): replace with the real generator; keep the
- * contract that one seed, tier and version always give one chain.
+ * Seed and deterministic chain generation (task 4): one seed, tier and version always give one chain. Version 0 builds
+ * chains of the tier's operations only, up to 16 steps. Deployer steps with resources are reserved for task 8 and arrive
+ * as a new generator version, so existing seeds keep their chains.
  *
  * The random source is SplitMix64. The chain is a list of operation ids; a chain never consists of a single repeated
  * operation when the tier allows at least two.

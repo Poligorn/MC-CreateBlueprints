@@ -1,0 +1,19 @@
+{
+  "display": "Too long",
+  "color": "#4A90E6",
+  "steps": {
+    "min": 10,
+    "max": 17
+  },
+  "operations": [
+    "blueprintforge:press",
+    "blueprintforge:blast"
+  ],
+  "bonus_multiplier": 1.0,
+  "attempt_cost": {
+    "deployers": {
+      "min": 0,
+      "max": 0
+    }
+  }
+}

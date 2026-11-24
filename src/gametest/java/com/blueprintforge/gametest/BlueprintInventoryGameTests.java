@@ -37,7 +37,7 @@ public final class BlueprintInventoryGameTests {
 
     private static ItemStack blueprint(boolean copy) {
         ResourceLocation tierId = BlueprintForge.id("t3");
-        ResourceLocation targetId = BlueprintForge.id("iron_pickaxe");
+        ResourceLocation targetId = BlueprintForge.id("pickaxe_t3");
         return ResearchBlueprintItem.create(tierId, ResearchRegistry.tier(tierId).orElseThrow(), targetId, ResearchRegistry.target(targetId).orElseThrow(), copy);
     }
 
@@ -83,11 +83,15 @@ public final class BlueprintInventoryGameTests {
         tab.buildContents(new CreativeModeTab.ItemDisplayParameters(FeatureFlags.DEFAULT_FLAGS, false, helper.getLevel().registryAccess()));
         List<ItemStack> blueprints = tab.getDisplayItems().stream().filter(stack -> stack.is(BFItems.RESEARCH_BLUEPRINT.get())).toList();
 
-        int expected = ResearchRegistry.tiers().size() * ResearchRegistry.targets().size() * 2;
+        // A target belongs to one tier: an original and a copy for each of them.
+        int expected = ResearchRegistry.targets().size() * 2;
+        helper.assertTrue(ResearchRegistry.targets().size() == 70, "14 types x 5 tiers = 70 targets, got " + ResearchRegistry.targets().size());
         helper.assertTrue(blueprints.size() == expected, "expected " + expected + " blueprints, got " + blueprints.size());
         helper.assertTrue(blueprints.stream().filter(stack -> data(stack).copy()).count() == expected / 2, "half of them are copies");
         helper.assertTrue(blueprints.stream().anyMatch(stack -> data(stack).spriteTier() == 5), "tier 5 is listed");
-        helper.assertTrue(blueprints.stream().anyMatch(stack -> data(stack).symbol().getSerializedName().equals("mace")), "the proposed types are listed");
+        for (com.blueprintforge.research.ResearchType type : com.blueprintforge.research.ResearchType.values()) {
+            helper.assertTrue(blueprints.stream().filter(stack -> data(stack).symbol() == type).count() == 10, type + " must have 5 tiers of original and copy");
+        }
         helper.assertTrue(blueprints.stream().allMatch(stack -> data(stack).seed().isEmpty()), "tab stacks carry no seed yet");
         helper.assertTrue(tab.getDisplayItems().stream().anyMatch(stack -> stack.is(BFItems.TERMINAL.get())), "the terminal is listed");
         helper.succeed();
