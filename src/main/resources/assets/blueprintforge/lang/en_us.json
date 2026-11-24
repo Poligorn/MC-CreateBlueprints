@@ -3,6 +3,8 @@
   "research.tier.blueprintforge.t1": "Tier 1",
   "research.tier.blueprintforge.t2": "Tier 2",
   "research.tier.blueprintforge.t3": "Tier 3",
+  "research.tier.blueprintforge.t4": "Tier 4",
+  "research.tier.blueprintforge.t5": "Tier 5",
   "block.blueprintforge.terminal": "Blueprint Terminal",
   "item.blueprintforge.research_blueprint": "Blueprint",
   "item.blueprintforge.scrap": "Scrap",

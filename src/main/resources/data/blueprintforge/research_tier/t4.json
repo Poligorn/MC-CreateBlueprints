@@ -1,0 +1,38 @@
+{
+  "display": {
+    "translate": "research.tier.blueprintforge.t4"
+  },
+  "color": "#C258E2",
+  "steps": {
+    "min": 8,
+    "max": 12
+  },
+  "operations": [
+    "blueprintforge:press",
+    "blueprintforge:blast"
+  ],
+  "bonus_multiplier": 1.5,
+  "attempt_cost": {
+    "deployers": {
+      "min": 3,
+      "max": 4
+    },
+    "pool": [
+      {
+        "item": "minecraft:diamond",
+        "count": {
+          "min": 2,
+          "max": 4
+        }
+      },
+      {
+        "item": "minecraft:emerald",
+        "count": {
+          "min": 2,
+          "max": 4
+        }
+      }
+    ]
+  },
+  "sprite_tier": 4
+}

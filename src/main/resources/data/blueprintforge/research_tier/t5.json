@@ -1,0 +1,38 @@
+{
+  "display": {
+    "translate": "research.tier.blueprintforge.t5"
+  },
+  "color": "#F8CC38",
+  "steps": {
+    "min": 12,
+    "max": 16
+  },
+  "operations": [
+    "blueprintforge:press",
+    "blueprintforge:blast"
+  ],
+  "bonus_multiplier": 1.7,
+  "attempt_cost": {
+    "deployers": {
+      "min": 4,
+      "max": 6
+    },
+    "pool": [
+      {
+        "item": "minecraft:diamond",
+        "count": {
+          "min": 3,
+          "max": 5
+        }
+      },
+      {
+        "item": "minecraft:netherite_scrap",
+        "count": {
+          "min": 1,
+          "max": 2
+        }
+      }
+    ]
+  },
+  "sprite_tier": 5
+}
