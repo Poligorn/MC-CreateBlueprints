@@ -1,0 +1,548 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "blueprintforge:item/blueprint/base"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "blueprintforge:variant": 1
+      },
+      "model": "blueprintforge:item/blueprint/sword_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 2
+      },
+      "model": "blueprintforge:item/blueprint/sword_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 3
+      },
+      "model": "blueprintforge:item/blueprint/sword_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 4
+      },
+      "model": "blueprintforge:item/blueprint/sword_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 5
+      },
+      "model": "blueprintforge:item/blueprint/sword_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 6
+      },
+      "model": "blueprintforge:item/blueprint/sword_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 7
+      },
+      "model": "blueprintforge:item/blueprint/sword_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 8
+      },
+      "model": "blueprintforge:item/blueprint/sword_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 9
+      },
+      "model": "blueprintforge:item/blueprint/sword_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 10
+      },
+      "model": "blueprintforge:item/blueprint/sword_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 11
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 12
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 13
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 14
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 15
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 16
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 17
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 18
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 19
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 20
+      },
+      "model": "blueprintforge:item/blueprint/pickaxe_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 21
+      },
+      "model": "blueprintforge:item/blueprint/axe_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 22
+      },
+      "model": "blueprintforge:item/blueprint/axe_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 23
+      },
+      "model": "blueprintforge:item/blueprint/axe_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 24
+      },
+      "model": "blueprintforge:item/blueprint/axe_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 25
+      },
+      "model": "blueprintforge:item/blueprint/axe_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 26
+      },
+      "model": "blueprintforge:item/blueprint/axe_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 27
+      },
+      "model": "blueprintforge:item/blueprint/axe_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 28
+      },
+      "model": "blueprintforge:item/blueprint/axe_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 29
+      },
+      "model": "blueprintforge:item/blueprint/axe_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 30
+      },
+      "model": "blueprintforge:item/blueprint/axe_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 31
+      },
+      "model": "blueprintforge:item/blueprint/shovel_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 32
+      },
+      "model": "blueprintforge:item/blueprint/shovel_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 33
+      },
+      "model": "blueprintforge:item/blueprint/shovel_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 34
+      },
+      "model": "blueprintforge:item/blueprint/shovel_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 35
+      },
+      "model": "blueprintforge:item/blueprint/shovel_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 36
+      },
+      "model": "blueprintforge:item/blueprint/shovel_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 37
+      },
+      "model": "blueprintforge:item/blueprint/shovel_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 38
+      },
+      "model": "blueprintforge:item/blueprint/shovel_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 39
+      },
+      "model": "blueprintforge:item/blueprint/shovel_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 40
+      },
+      "model": "blueprintforge:item/blueprint/shovel_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 41
+      },
+      "model": "blueprintforge:item/blueprint/hoe_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 42
+      },
+      "model": "blueprintforge:item/blueprint/hoe_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 43
+      },
+      "model": "blueprintforge:item/blueprint/hoe_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 44
+      },
+      "model": "blueprintforge:item/blueprint/hoe_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 45
+      },
+      "model": "blueprintforge:item/blueprint/hoe_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 46
+      },
+      "model": "blueprintforge:item/blueprint/hoe_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 47
+      },
+      "model": "blueprintforge:item/blueprint/hoe_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 48
+      },
+      "model": "blueprintforge:item/blueprint/hoe_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 49
+      },
+      "model": "blueprintforge:item/blueprint/hoe_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 50
+      },
+      "model": "blueprintforge:item/blueprint/hoe_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 51
+      },
+      "model": "blueprintforge:item/blueprint/helmet_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 52
+      },
+      "model": "blueprintforge:item/blueprint/helmet_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 53
+      },
+      "model": "blueprintforge:item/blueprint/helmet_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 54
+      },
+      "model": "blueprintforge:item/blueprint/helmet_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 55
+      },
+      "model": "blueprintforge:item/blueprint/helmet_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 56
+      },
+      "model": "blueprintforge:item/blueprint/helmet_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 57
+      },
+      "model": "blueprintforge:item/blueprint/helmet_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 58
+      },
+      "model": "blueprintforge:item/blueprint/helmet_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 59
+      },
+      "model": "blueprintforge:item/blueprint/helmet_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 60
+      },
+      "model": "blueprintforge:item/blueprint/helmet_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 61
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 62
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 63
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 64
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 65
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 66
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 67
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 68
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 69
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 70
+      },
+      "model": "blueprintforge:item/blueprint/chestplate_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 71
+      },
+      "model": "blueprintforge:item/blueprint/leggings_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 72
+      },
+      "model": "blueprintforge:item/blueprint/leggings_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 73
+      },
+      "model": "blueprintforge:item/blueprint/leggings_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 74
+      },
+      "model": "blueprintforge:item/blueprint/leggings_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 75
+      },
+      "model": "blueprintforge:item/blueprint/leggings_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 76
+      },
+      "model": "blueprintforge:item/blueprint/leggings_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 77
+      },
+      "model": "blueprintforge:item/blueprint/leggings_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 78
+      },
+      "model": "blueprintforge:item/blueprint/leggings_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 79
+      },
+      "model": "blueprintforge:item/blueprint/leggings_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 80
+      },
+      "model": "blueprintforge:item/blueprint/leggings_copy_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 81
+      },
+      "model": "blueprintforge:item/blueprint/boots_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 82
+      },
+      "model": "blueprintforge:item/blueprint/boots_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 83
+      },
+      "model": "blueprintforge:item/blueprint/boots_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 84
+      },
+      "model": "blueprintforge:item/blueprint/boots_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 85
+      },
+      "model": "blueprintforge:item/blueprint/boots_t5"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 86
+      },
+      "model": "blueprintforge:item/blueprint/boots_copy_t1"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 87
+      },
+      "model": "blueprintforge:item/blueprint/boots_copy_t2"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 88
+      },
+      "model": "blueprintforge:item/blueprint/boots_copy_t3"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 89
+      },
+      "model": "blueprintforge:item/blueprint/boots_copy_t4"
+    },
+    {
+      "predicate": {
+        "blueprintforge:variant": 90
+      },
+      "model": "blueprintforge:item/blueprint/boots_copy_t5"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "blueprintforge:block/terminal_side",
+    "front": "blueprintforge:block/terminal_front_active_t4",
+    "side": "blueprintforge:block/terminal_side",
+    "out": "blueprintforge:block/terminal_side_out",
+    "top": "blueprintforge:block/terminal_top",
+    "back": "blueprintforge:block/terminal_back",
+    "bottom": "blueprintforge:block/terminal_bottom"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "north": { "texture": "#front", "cullface": "north" },
+        "east": { "texture": "#out", "cullface": "east" },
+        "south": { "texture": "#back", "cullface": "south" },
+        "west": { "texture": "#side", "cullface": "west" },
+        "up": { "texture": "#top", "cullface": "up" },
+        "down": { "texture": "#bottom", "cullface": "down" }
+      }
+    }
+  ]
+}

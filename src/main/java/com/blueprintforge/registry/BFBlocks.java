@@ -5,6 +5,8 @@ import java.util.function.Supplier;
 import com.blueprintforge.BlueprintForge;
 import com.blueprintforge.machine.BlueprintArchiveBlock;
 import com.blueprintforge.machine.BlueprintArchiveBlockEntity;
+import com.blueprintforge.terminal.TerminalBlock;
+import com.blueprintforge.terminal.TerminalBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.SoundType;
@@ -30,6 +32,17 @@ public final class BFBlocks {
     @SuppressWarnings("DataFlowIssue")
     public static final Supplier<BlockEntityType<BlueprintArchiveBlockEntity>> BLUEPRINT_ARCHIVE_ENTITY = BLOCK_ENTITIES.register("blueprint_archive",
             () -> BlockEntityType.Builder.of(BlueprintArchiveBlockEntity::new, BLUEPRINT_ARCHIVE.get()).build(null));
+
+    public static final DeferredBlock<TerminalBlock> TERMINAL = BLOCKS.register("terminal",
+            () -> new TerminalBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(3.0F, 6.0F)
+                    .sound(SoundType.METAL)
+                    .requiresCorrectToolForDrops()));
+
+    @SuppressWarnings("DataFlowIssue")
+    public static final Supplier<BlockEntityType<TerminalBlockEntity>> TERMINAL_ENTITY = BLOCK_ENTITIES.register("terminal",
+            () -> BlockEntityType.Builder.of(TerminalBlockEntity::new, TERMINAL.get()).build(null));
 
     private BFBlocks() {
     }

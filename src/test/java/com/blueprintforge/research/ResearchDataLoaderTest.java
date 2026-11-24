@@ -103,6 +103,30 @@ class ResearchDataLoaderTest {
     }
 
     @Test
+    void shippedTiersCarryTheOfficialIconColour() throws IOException {
+        Map<String, String> tiers = new TreeMap<>();
+        for (String name : new String[] {"t1", "t2", "t3"}) {
+            tiers.put(name, shipped("research_tier", name).toString());
+        }
+        ResearchDataLoader.Result result = load(tiers, Map.of());
+        assertEquals(1, result.tiers().get(id("t1")).spriteTier());
+        assertEquals(2, result.tiers().get(id("t2")).spriteTier());
+        assertEquals(3, result.tiers().get(id("t3")).spriteTier());
+    }
+
+    @Test
+    void spriteTierDefaultsToOneAndMustBeInRange() {
+        ResearchDataLoader.Result result = load(Map.of(
+                "plain", tier(OK_STEPS, OK_OPS, NO_COST),
+                "gold", tier(OK_STEPS, OK_OPS, NO_COST).replace("\"bonus_multiplier\"", "\"sprite_tier\": 5, \"bonus_multiplier\""),
+                "too_high", tier(OK_STEPS, OK_OPS, NO_COST).replace("\"bonus_multiplier\"", "\"sprite_tier\": 6, \"bonus_multiplier\"")), Map.of());
+        assertEquals(1, result.tiers().get(id("plain")).spriteTier());
+        assertEquals(5, result.tiers().get(id("gold")).spriteTier());
+        assertFalse(result.tiers().containsKey(id("too_high")));
+        assertTrue(hasError(result, "too_high"), result.errors().toString());
+    }
+
+    @Test
     void invalidTierIsSkippedAndTheRestLoads() {
         ResearchDataLoader.Result result = load(Map.of(
                 "good", tier(OK_STEPS, OK_OPS, NO_COST),
