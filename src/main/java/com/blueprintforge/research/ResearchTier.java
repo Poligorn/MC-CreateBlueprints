@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceLocation;
  * @param operations      ids of the operations a chain may use, for example {@code blueprintforge:press}. The ids are not
  *                        checked against known operations yet: that comes with the chain generator.
  * @param bonusMultiplier strength of the enhancement a successful run gives
+ * @param spriteTier      which official icon colour the tier uses, 1 (blue) to 5 (gold); 1 when a file does not say
  */
 public record ResearchTier(
         Component display,
@@ -27,7 +28,8 @@ public record ResearchTier(
         IntRange steps,
         List<ResourceLocation> operations,
         double bonusMultiplier,
-        AttemptCost attemptCost
+        AttemptCost attemptCost,
+        int spriteTier
 ) {
     public static final Codec<ResearchTier> CODEC = RecordCodecBuilder.<ResearchTier>create(i -> i.group(
             ComponentSerialization.CODEC.fieldOf("display").forGetter(ResearchTier::display),
@@ -35,7 +37,8 @@ public record ResearchTier(
             IntRange.CODEC.fieldOf("steps").forGetter(ResearchTier::steps),
             ResourceLocation.CODEC.listOf().fieldOf("operations").forGetter(ResearchTier::operations),
             Codec.doubleRange(0.0, Double.MAX_VALUE).fieldOf("bonus_multiplier").forGetter(ResearchTier::bonusMultiplier),
-            AttemptCost.CODEC.fieldOf("attempt_cost").forGetter(ResearchTier::attemptCost)
+            AttemptCost.CODEC.fieldOf("attempt_cost").forGetter(ResearchTier::attemptCost),
+            Codec.intRange(1, 5).optionalFieldOf("sprite_tier", 1).forGetter(ResearchTier::spriteTier)
     ).apply(i, ResearchTier::new)).validate(ResearchTier::validate);
 
     private static DataResult<ResearchTier> validate(ResearchTier tier) {

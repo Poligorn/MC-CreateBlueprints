@@ -16,6 +16,9 @@ import com.blueprintforge.registry.BFItems;
 import com.blueprintforge.registry.BFLootModifiers;
 import com.blueprintforge.registry.BFMenus;
 import com.blueprintforge.research.ResearchDataLoader;
+import com.blueprintforge.terminal.TerminalBlockEntity;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
@@ -50,6 +53,7 @@ public final class BlueprintForge {
         modBus.addListener(ModConfigEvent.Loading.class, BFConfig::onConfigLoad);
         modBus.addListener(ModConfigEvent.Reloading.class, BFConfig::onConfigLoad);
         modBus.addListener(BlueprintForge::registerPayloads);
+        modBus.addListener(BlueprintForge::registerCapabilities);
 
         NeoForge.EVENT_BUS.addListener(BlueprintForge::addReloadListeners);
         NeoForge.EVENT_BUS.addListener(BlueprintForge::syncDefinitions);
@@ -72,6 +76,10 @@ public final class BlueprintForge {
         event.getRelevantPlayers()
                 .filter(player -> player.connection.hasChannel(BlueprintSyncPayload.TYPE))
                 .forEach(player -> PacketDistributor.sendToPlayer(player, payload));
+    }
+
+    private static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, BFBlocks.TERMINAL_ENTITY.get(), TerminalBlockEntity::handlerFor);
     }
 
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {
