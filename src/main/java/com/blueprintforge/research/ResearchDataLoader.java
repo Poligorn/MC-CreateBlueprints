@@ -122,6 +122,12 @@ public final class ResearchDataLoader extends SimplePreparableReloadListener<Res
         Set<ResourceLocation> inactive = new HashSet<>();
         raw.targets().forEach((id, json) ->
                 decode(ResearchTarget.CODEC, ops, json, errors, path(TARGET_DIR, id)).ifPresent(target -> {
+                    if (!tiers.containsKey(target.tier())) {
+                        String error = "Skipped " + path(TARGET_DIR, id) + ": unknown tier " + target.tier();
+                        LOGGER.error(error);
+                        errors.add(error);
+                        return;
+                    }
                     if (!itemExists.test(target.item())) {
                         LOGGER.debug("Research target {} is inactive: item {} is not in this modpack", id, target.item());
                         inactive.add(id);

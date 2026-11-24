@@ -46,8 +46,8 @@ import net.neoforged.neoforge.items.IItemHandler;
 public final class TerminalGameTests {
     private static final String EMPTY = "empty";
     private static final BlockPos TERMINAL = new BlockPos(2, 1, 2);
-    private static final ResourceLocation T2 = BlueprintForge.id("t2");
-    private static final ResourceLocation PICKAXE = BlueprintForge.id("iron_pickaxe");
+    private static final ResourceLocation T3 = BlueprintForge.id("t3");
+    private static final ResourceLocation PICKAXE = BlueprintForge.id("pickaxe_t3");
 
     private TerminalGameTests() {
     }
@@ -90,14 +90,14 @@ public final class TerminalGameTests {
     public static void terminalGivesASeedAndChangesItsScreenWhenABlueprintIsInserted(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
         helper.assertTrue(helper.getBlockState(TERMINAL).getValue(TerminalBlock.SCREEN) == TerminalScreenState.IDLE, "empty terminal is idle");
-        insertBlueprint(helper, be, T2);
+        insertBlueprint(helper, be, T3);
 
         ResearchBlueprint stored = be.inventory().getStackInSlot(TerminalSlots.BLUEPRINT).get(BFComponents.RESEARCH_BLUEPRINT.get());
         helper.assertTrue(stored.seed().isPresent(), "the seed is assigned on the first insertion");
         long seed = stored.seed().get();
-        helper.assertTrue(helper.getBlockState(TERMINAL).getValue(TerminalBlock.SCREEN) == TerminalScreenState.ACTIVE_T2, "tier 2 shows the T2 screen");
+        helper.assertTrue(helper.getBlockState(TERMINAL).getValue(TerminalBlock.SCREEN) == TerminalScreenState.ACTIVE_T2, "tier 2 shows the T3 screen");
         int steps = be.chain().size();
-        ResearchTier tier = ResearchRegistry.tier(T2).orElseThrow();
+        ResearchTier tier = ResearchRegistry.tier(T3).orElseThrow();
         helper.assertTrue(steps >= tier.steps().min() && steps <= tier.steps().max(), "steps within the tier range, got " + steps);
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_STEPS) == steps, "the menu data reports the step count");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PRESS) + be.data.get(TerminalBlockEntity.DATA_BLAST) + be.data.get(TerminalBlockEntity.DATA_OTHER) == steps,
@@ -117,7 +117,7 @@ public final class TerminalGameTests {
         TerminalBlockEntity be = terminal(helper);
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false).isEmpty(), "no target slot without a blueprint");
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.BLUEPRINT, new ItemStack(Items.PAPER), false).isEmpty(), "only blueprints go in the blueprint slot");
-        insertBlueprint(helper, be, T2);
+        insertBlueprint(helper, be, T3);
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.TARGET, new ItemStack(Items.IRON_SWORD), false).isEmpty(), "a sword is not this blueprint's target");
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.OUTPUT, pickaxe(), false).isEmpty(), "the output slot takes nothing from outside");
 
@@ -132,7 +132,7 @@ public final class TerminalGameTests {
         helper.assertTrue(SpikeLine.operationsOf(workpiece).isEmpty(), "the log starts empty");
         ResearchRun run = workpiece.get(BFComponents.RESEARCH_RUN.get());
         ResearchBlueprint stored = be.inventory().getStackInSlot(TerminalSlots.BLUEPRINT).get(BFComponents.RESEARCH_BLUEPRINT.get());
-        helper.assertTrue(run != null && run.seed() == stored.seed().orElseThrow() && run.tier().equals(T2), "the workpiece remembers tier and seed");
+        helper.assertTrue(run != null && run.seed() == stored.seed().orElseThrow() && run.tier().equals(T3), "the workpiece remembers tier and seed");
 
         // The workpiece is the target item with a log: it must not be accepted as a fresh target.
         helper.assertFalse(be.inventory().insertItem(TerminalSlots.TARGET, workpiece.copy(), false).isEmpty(), "a workpiece is refused by the target slot");
@@ -147,7 +147,7 @@ public final class TerminalGameTests {
     @GameTest(template = EMPTY)
     public static void aRunMatchingTheChainGivesTheItemAndAnyOtherRunGivesScrap(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
-        insertBlueprint(helper, be, T2);
+        insertBlueprint(helper, be, T3);
         List<String> chain = chainOf(be);
 
         // Perfect run: the log equals the chain.
@@ -155,8 +155,14 @@ public final class TerminalGameTests {
         helper.assertTrue(be.inventory().insertItem(TerminalSlots.RETURN, perfect, false).isEmpty(), "the workpiece goes into the return slot");
         helper.assertTrue(be.checkRun() == null, "the run is checked");
         ItemStack reward = be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false);
-        helper.assertTrue(reward.is(Items.IRON_PICKAXE) && !SpikeLine.isWorkpiece(reward), "100% gives the plain target item (placeholder for the enhanced one)");
-        helper.assertTrue(Boolean.TRUE.equals(reward.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE)), "the placeholder result glints");
+        helper.assertTrue(reward.is(Items.IRON_PICKAXE) && !SpikeLine.isWorkpiece(reward), "100% gives the target item (placeholder for the enhanced one)");
+        helper.assertTrue(Boolean.TRUE.equals(reward.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE)), "the result glints");
+        helper.assertTrue(reward.get(DataComponents.CUSTOM_NAME) != null
+                && reward.get(DataComponents.CUSTOM_NAME).getStyle().getColor() != null
+                && reward.get(DataComponents.CUSTOM_NAME).getStyle().getColor().getValue() == net.minecraft.ChatFormatting.GOLD.getColor(),
+                "the result has a gold name");
+        helper.assertTrue(reward.get(DataComponents.LORE) != null && reward.get(DataComponents.LORE).lines().size() == 1,
+                "the result names its tier in one lore line");
         helper.assertTrue(be.inventory().getStackInSlot(TerminalSlots.RETURN).isEmpty(), "the workpiece is spent");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == 100, "last run is 100%");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_MATCHED) == chain.size() && be.data.get(TerminalBlockEntity.DATA_TOTAL) == chain.size(), "all steps matched");
@@ -178,7 +184,7 @@ public final class TerminalGameTests {
     @GameTest(template = EMPTY)
     public static void anUnrunWorkpieceScoresZeroAndAnExtraStepIsNotAHundred(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
-        insertBlueprint(helper, be, T2);
+        insertBlueprint(helper, be, T3);
         List<String> chain = chainOf(be);
 
         be.inventory().insertItem(TerminalSlots.RETURN, runWith(helper, be, List.of()), false);
@@ -198,7 +204,7 @@ public final class TerminalGameTests {
     @GameTest(template = EMPTY)
     public static void theOutputCanBeTakenOnlyFromTheBrassPortSide(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
-        insertBlueprint(helper, be, T2);
+        insertBlueprint(helper, be, T3);
         be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false);
         be.createWorkpiece();
 
@@ -240,7 +246,7 @@ public final class TerminalGameTests {
     public static void theTerminalReportsOnlyMachinesTheChainNeeds(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_MISSING) == 0, "no blueprint, nothing is missing");
-        insertBlueprint(helper, be, T2);
+        insertBlueprint(helper, be, T3);
         int missing = be.data.get(TerminalBlockEntity.DATA_MISSING);
         helper.assertTrue((missing & ~(LineScanner.PRESS | LineScanner.BLAST)) == 0, "only the two known machines can be reported, got " + missing);
         be.inventory().extractItem(TerminalSlots.BLUEPRINT, 1, false);
@@ -251,7 +257,7 @@ public final class TerminalGameTests {
     @GameTest(template = EMPTY)
     public static void brokenTerminalDropsWhatItHolds(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
-        insertBlueprint(helper, be, T2);
+        insertBlueprint(helper, be, T3);
         be.inventory().insertItem(TerminalSlots.TARGET, pickaxe(), false);
         helper.destroyBlock(TERMINAL);
         List<ItemEntity> drops = helper.getEntities(net.minecraft.world.entity.EntityType.ITEM, TERMINAL, 3.0);
@@ -263,7 +269,7 @@ public final class TerminalGameTests {
     @GameTest(template = EMPTY)
     public static void aBlueprintOfAnUnknownTierGivesNoChainAndNoWorkpiece(GameTestHelper helper) {
         TerminalBlockEntity be = terminal(helper);
-        ItemStack stack = blueprint(T2, false);
+        ItemStack stack = blueprint(T3, false);
         ResearchBlueprint base = stack.get(BFComponents.RESEARCH_BLUEPRINT.get());
         stack.set(BFComponents.RESEARCH_BLUEPRINT.get(), new ResearchBlueprint(BlueprintForge.id("no_such_tier"), base.target(), base.item(), base.symbol(),
                 base.spriteTier(), false, java.util.Optional.empty(), ResearchChain.GENERATOR_VERSION));

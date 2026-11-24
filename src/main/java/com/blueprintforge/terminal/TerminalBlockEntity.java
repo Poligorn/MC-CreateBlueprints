@@ -16,6 +16,7 @@ import com.blueprintforge.research.ResearchRun;
 import com.blueprintforge.research.ResearchTier;
 import com.blueprintforge.research.RunScore;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -23,6 +24,8 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Containers;
 import net.minecraft.world.MenuProvider;
@@ -32,6 +35,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -319,11 +323,17 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         lastTotal = score.total();
 
         // TODO(egor): stubs. 100% should give the enhanced item (task 9) and anything less the scrap (task 10, open question 3).
-        // Here 100% gives the plain target item with a glint, anything less gives a placeholder scrap item.
+        // Here 100% gives the target item with a gold name, a glint and a tier line, anything less gives a placeholder scrap item.
         ItemStack result;
         if (score.complete()) {
             Item item = BuiltInRegistries.ITEM.get(run.item());
             result = new ItemStack(item);
+            // Gold name, enchantment glint and a tier line mark an item made from a blueprint (decision of 24 November 2026).
+            result.set(DataComponents.CUSTOM_NAME, Component.translatable(item.getDescriptionId())
+                    .withStyle(Style.EMPTY.withColor(ChatFormatting.GOLD).withItalic(false)));
+            result.set(DataComponents.LORE, new ItemLore(List.of(Component.translatable("tooltip.blueprintforge.result.from",
+                    Component.translatable("research.tier." + run.tier().getNamespace() + "." + run.tier().getPath()))
+                    .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(tier.color())).withItalic(false)))));
             result.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
         } else {
             result = new ItemStack(BFItems.SCRAP.get());

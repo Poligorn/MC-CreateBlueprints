@@ -40,5 +40,6 @@
   "gui.blueprintforge.terminal.error.output_busy": "Take the item out of the output slot first",
   "gui.blueprintforge.terminal.error.no_workpiece": "Put a workpiece into the return slot",
   "gui.blueprintforge.terminal.create.tooltip": "Spend the target item and make a workpiece",
-  "gui.blueprintforge.terminal.check.tooltip": "Score the returned workpiece against the chain"
+  "gui.blueprintforge.terminal.check.tooltip": "Score the returned workpiece against the chain",
+  "tooltip.blueprintforge.result.from": "From a blueprint, %s"
 }
