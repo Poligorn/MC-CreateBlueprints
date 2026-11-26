@@ -2,9 +2,9 @@ package com.blueprintforge.terminal;
 
 import net.minecraft.util.StringRepresentable;
 
-/** Which front texture the terminal shows: empty, or a blueprint inside (T4 and T5 icons share the T4 screen). */
+/** Which screen the terminal shows: waiting, or with a blueprint inside. */
 public enum TerminalScreenState implements StringRepresentable {
-    IDLE("idle"), ACTIVE_T2("active_t2"), ACTIVE_T4("active_t4");
+    IDLE("idle"), ACTIVE("active");
 
     private final String name;
 

@@ -82,7 +82,7 @@ public final class DeployerCostGameTests {
     }
 
     private static ItemStack issueWorkpiece(GameTestHelper helper, TerminalBlockEntity be) {
-        helper.assertTrue(be.inventory().insertItem(TerminalSlots.TARGET, new ItemStack(Items.IRON_PICKAXE), false).isEmpty(), "the target must fit");
+        helper.assertTrue(be.inventory().insertItem(TerminalSlots.ITEM, new ItemStack(Items.IRON_PICKAXE), false).isEmpty(), "the target must fit");
         helper.assertTrue(be.createWorkpiece() == null, "the workpiece must be issued");
         return be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false);
     }
@@ -137,7 +137,7 @@ public final class DeployerCostGameTests {
         for (String key : keys) {
             exact = SpikeLine.withOperation(exact, key);
         }
-        be.inventory().insertItem(TerminalSlots.RETURN, exact, false);
+        be.inventory().insertItem(TerminalSlots.ITEM, exact, false);
         helper.assertTrue(be.checkRun() == null, "the run is checked");
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) == 100, "the exact keys give 100%");
         be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false);
@@ -147,13 +147,13 @@ public final class DeployerCostGameTests {
         List<String> wrongCount = new ArrayList<>(keys);
         wrongCount.set(firstDeploy, ChainStep.deployKey(step.item(), step.count() + 1));
         for (List<String> run : List.of(wrongItem, wrongCount)) {
-            helper.assertTrue(be.inventory().insertItem(TerminalSlots.TARGET, new ItemStack(Items.IRON_PICKAXE), false).isEmpty(), "target");
+            helper.assertTrue(be.inventory().insertItem(TerminalSlots.ITEM, new ItemStack(Items.IRON_PICKAXE), false).isEmpty(), "target");
             helper.assertTrue(be.createWorkpiece() == null, "workpiece");
             ItemStack out = be.inventory().extractItem(TerminalSlots.OUTPUT, 1, false);
             for (String key : run) {
                 out = SpikeLine.withOperation(out, key);
             }
-            be.inventory().insertItem(TerminalSlots.RETURN, out, false);
+            be.inventory().insertItem(TerminalSlots.ITEM, out, false);
             helper.assertTrue(be.checkRun() == null, "checked");
             helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PERCENT) < 100, "a wrong deployer step is not a match: " + run);
             helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_MATCHED) == keys.size() - 1, "only that position is lost");
@@ -233,11 +233,11 @@ public final class DeployerCostGameTests {
                 for (int i = 1; i < chain.size(); i++) {
                     run = SpikeLine.withOperation(run, chain.get(i).key());
                 }
-                terminal.inventory().insertItem(TerminalSlots.RETURN, run, false);
+                terminal.inventory().insertItem(TerminalSlots.ITEM, run, false);
                 helper.assertTrue(terminal.checkRun() == null, "the run is checked");
                 helper.assertTrue(terminal.data.get(TerminalBlockEntity.DATA_PERCENT) == 100, "a live deployer step plus the rest in order is 100%");
             } else {
-                terminal.inventory().insertItem(TerminalSlots.RETURN, found.getFirst(), false);
+                terminal.inventory().insertItem(TerminalSlots.ITEM, found.getFirst(), false);
                 helper.assertTrue(terminal.checkRun() == null, "the run is checked");
                 helper.assertTrue(terminal.data.get(TerminalBlockEntity.DATA_PERCENT) < 100, "a failed run is below 100%");
                 helper.assertTrue(terminal.inventory().getStackInSlot(TerminalSlots.OUTPUT).is(com.blueprintforge.registry.BFItems.SCRAP.get()), "and gives scrap");

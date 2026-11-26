@@ -20,12 +20,15 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
 public class TerminalMenu extends AbstractContainerMenu {
-    public static final int BUTTON_CREATE = 0;
-    public static final int BUTTON_CHECK = 1;
+    /** The one button of the screen: makes a workpiece from the target, or scores a workpiece that came back. */
+    public static final int BUTTON_ACTION = 0;
 
-    public static final int[] SLOT_X = {8, 8, 8, 8};
-    public static final int[] SLOT_Y = {26, 50, 82, 106};
-    public static final int INVENTORY_Y = 170;
+    // Positions follow mockup v3, whose frame is 385 x 265 pixels.
+    public static final int[] SLOT_X = {24, 24, 24};
+    public static final int[] SLOT_Y = {37, 71, 105};
+    public static final int INVENTORY_X = 47;
+    public static final int INVENTORY_Y = 183;
+    public static final int HOTBAR_Y = 241;
 
     private final ContainerLevelAccess access;
     private final ContainerData data;
@@ -48,22 +51,21 @@ public class TerminalMenu extends AbstractContainerMenu {
         this.terminal = terminal;
 
         addSlot(new SlotItemHandler(slots, TerminalSlots.BLUEPRINT, SLOT_X[0], SLOT_Y[0]));
-        addSlot(new SlotItemHandler(slots, TerminalSlots.TARGET, SLOT_X[1], SLOT_Y[1]));
+        addSlot(new SlotItemHandler(slots, TerminalSlots.ITEM, SLOT_X[1], SLOT_Y[1]));
         addSlot(new SlotItemHandler(slots, TerminalSlots.OUTPUT, SLOT_X[2], SLOT_Y[2]) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return false;
             }
         });
-        addSlot(new SlotItemHandler(slots, TerminalSlots.RETURN, SLOT_X[3], SLOT_Y[3]));
 
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(inventory, column + row * 9 + 9, 8 + column * 18, INVENTORY_Y + row * 18));
+                addSlot(new Slot(inventory, column + row * 9 + 9, INVENTORY_X + column * 18, INVENTORY_Y + row * 18));
             }
         }
         for (int column = 0; column < 9; column++) {
-            addSlot(new Slot(inventory, column, 8 + column * 18, INVENTORY_Y + 58));
+            addSlot(new Slot(inventory, column, INVENTORY_X + column * 18, HOTBAR_Y));
         }
         addDataSlots(data);
     }
@@ -82,17 +84,10 @@ public class TerminalMenu extends AbstractContainerMenu {
 
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (terminal == null) {
+        if (terminal == null || id != BUTTON_ACTION) {
             return false;
         }
-        Component error = switch (id) {
-            case BUTTON_CREATE -> terminal.createWorkpiece();
-            case BUTTON_CHECK -> terminal.checkRun();
-            default -> null;
-        };
-        if (id != BUTTON_CREATE && id != BUTTON_CHECK) {
-            return false;
-        }
+        Component error = terminal.performAction();
         if (error != null) {
             player.displayClientMessage(error, true);
         }

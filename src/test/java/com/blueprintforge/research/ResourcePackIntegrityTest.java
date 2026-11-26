@@ -112,16 +112,34 @@ class ResourcePackIntegrityTest {
     @Test
     void terminalBlockstateModelsAndTexturesAreAllThere() throws IOException {
         JsonObject variants = json(ASSETS + "blockstates/terminal.json").getAsJsonObject("variants");
-        assertEquals(12, variants.size(), "4 facings x 3 screens");
+        assertEquals(16, variants.size(), "4 facings x 2 halves x 2 screens");
         List<String> seen = new ArrayList<>();
         for (var entry : variants.entrySet()) {
             assertModel(entry.getValue().getAsJsonObject().get("model").getAsString(), seen);
         }
-        assertTrue(seen.contains("blueprintforge:block/terminal_idle"));
-        assertTrue(seen.contains("blueprintforge:block/terminal_active_t2"));
-        assertTrue(seen.contains("blueprintforge:block/terminal_active_t4"));
+        for (String model : List.of("terminal_lower", "terminal_upper_idle", "terminal_upper_active")) {
+            assertTrue(seen.contains("blueprintforge:block/" + model), model + " must be used");
+        }
         assertModel("blueprintforge:item/terminal", new ArrayList<>());
         assertModel("blueprintforge:item/scrap", new ArrayList<>());
+    }
+
+    @Test
+    void cutOutTerminalTexturesKeepTheirTransparency() throws IOException {
+        for (String name : List.of("east_upper", "west_upper", "upper_top", "desk_front")) {
+            try (InputStream in = open(ASSETS + "textures/block/terminal/" + name + ".png")) {
+                java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(in);
+                int clear = 0;
+                for (int y = 0; y < image.getHeight(); y++) {
+                    for (int x = 0; x < image.getWidth(); x++) {
+                        if ((image.getRGB(x, y) >>> 24) == 0) {
+                            clear++;
+                        }
+                    }
+                }
+                assertTrue(clear > 0, name + " must have transparent texels");
+            }
+        }
     }
 
     @Test
@@ -144,7 +162,7 @@ class ResourcePackIntegrityTest {
         JsonObject ru = json(ASSETS + "lang/ru_ru.json");
         for (String key : List.of("block.blueprintforge.terminal", "item.blueprintforge.research_blueprint", "item.blueprintforge.scrap",
                 "research.tier.blueprintforge.t1", "research.tier.blueprintforge.t2", "research.tier.blueprintforge.t3",
-                "gui.blueprintforge.terminal.create", "gui.blueprintforge.terminal.check", "gui.blueprintforge.terminal.warning",
+                "gui.blueprintforge.terminal.action.make", "gui.blueprintforge.terminal.action.check", "gui.blueprintforge.terminal.warning",
                 "gui.blueprintforge.terminal.last", "gui.blueprintforge.terminal.line.missing", "tooltip.blueprintforge.workpiece",
                 "tooltip.blueprintforge.result.from", "gui.blueprintforge.terminal.recorded", "tooltip.blueprintforge.workpiece.of")) {
             assertTrue(en.has(key), "en_us lacks " + key);
