@@ -34,7 +34,8 @@ public record ResearchBlueprint(
             Codec.intRange(1, 5).fieldOf("sprite_tier").forGetter(ResearchBlueprint::spriteTier),
             Codec.BOOL.optionalFieldOf("copy", false).forGetter(ResearchBlueprint::copy),
             Codec.LONG.optionalFieldOf("seed").forGetter(ResearchBlueprint::seed),
-            Codec.INT.optionalFieldOf("generator_version", ResearchChain.GENERATOR_VERSION).forGetter(ResearchBlueprint::generatorVersion)
+            // A stored blueprint without the field was made before generator version 1, so its default is 0 and not the current version.
+            Codec.INT.optionalFieldOf("generator_version", ResearchChain.VERSION_PRESS_BLAST).forGetter(ResearchBlueprint::generatorVersion)
     ).apply(i, ResearchBlueprint::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ResearchBlueprint> STREAM_CODEC = StreamCodec.of(
@@ -66,6 +67,10 @@ public record ResearchBlueprint(
 
     public ResearchBlueprint withSeed(long newSeed) {
         return new ResearchBlueprint(tier, target, item, symbol, spriteTier, copy, Optional.of(newSeed), generatorVersion);
+    }
+
+    public ResearchBlueprint withGeneratorVersion(int version) {
+        return new ResearchBlueprint(tier, target, item, symbol, spriteTier, copy, seed, version);
     }
 
     /** Index for the item model predicate: 0 is "no component", then type, copy flag and sprite tier. */

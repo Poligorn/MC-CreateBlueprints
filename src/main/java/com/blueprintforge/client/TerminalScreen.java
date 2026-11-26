@@ -18,10 +18,12 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -172,6 +174,7 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
                     graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.op.other", menu.data(TerminalBlockEntity.DATA_OTHER)), x + 6, y, AMBER, false);
                     y += step;
                 }
+                y = drawCost(graphics, x, y, step);
                 y = drawLine(graphics, x, y, step);
             }
         }
@@ -214,6 +217,31 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         }
     }
 
+    /** Deployer count and what an attempt costs: totals per item, a price and not the order of the steps. */
+    private int drawCost(GuiGraphics graphics, int x, int y, int step) {
+        int deployers = menu.data(TerminalBlockEntity.DATA_DEPLOY);
+        if (deployers == 0) {
+            return y;
+        }
+        Component items = Component.empty();
+        boolean first = true;
+        for (int i = 0; i < TerminalBlockEntity.MAX_COST_ITEMS; i++) {
+            int count = menu.data(TerminalBlockEntity.DATA_COST + 2 * i + 1);
+            if (count <= 0) {
+                continue;
+            }
+            Item item = BuiltInRegistries.ITEM.byId(menu.data(TerminalBlockEntity.DATA_COST + 2 * i));
+            Component entry = Component.translatable("gui.blueprintforge.terminal.cost.entry", count, item.getDescription());
+            items = first ? entry : Component.empty().append(items).append(", ").append(entry);
+            first = false;
+        }
+        for (FormattedCharSequence line : font.split(Component.translatable("gui.blueprintforge.terminal.cost", deployers, items), CRT_W - 8)) {
+            graphics.drawString(font, line, x + 6, y, AMBER, false);
+            y += step;
+        }
+        return y;
+    }
+
     /** "What the line lacks": the machines the chain needs and the scan around the terminal did not find. */
     private int drawLine(GuiGraphics graphics, int x, int y, int step) {
         int missing = menu.data(TerminalBlockEntity.DATA_MISSING);
@@ -227,6 +255,9 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         }
         if ((missing & LineScanner.BLAST) != 0) {
             names.add(Component.translatable("gui.blueprintforge.terminal.machine.blast"));
+        }
+        if ((missing & LineScanner.DEPLOYER) != 0) {
+            names.add(Component.translatable("gui.blueprintforge.terminal.machine.deployer"));
         }
         Component joined = Component.empty();
         for (int i = 0; i < names.size(); i++) {
