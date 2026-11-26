@@ -26,7 +26,7 @@
   "gui.blueprintforge.terminal.machine.blast": "вентилятора за лавой",
   "gui.blueprintforge.terminal.last": "Прогон: %s%% (%s из %s)",
   "gui.blueprintforge.terminal.last.none": "Прогонов ещё не было",
-  "gui.blueprintforge.terminal.warning": "Предмет только при 100%, иначе хлам. Цель тратится всегда.",
+  "gui.blueprintforge.terminal.warning": "Предмет только при 100%, иначе хлам. Цель и ресурсы деплоеров тратятся всегда.",
   "gui.blueprintforge.terminal.slot.0": "Чертёж",
   "gui.blueprintforge.terminal.slot.1": "Предмет-цель",
   "gui.blueprintforge.terminal.slot.2": "Заготовка / результат",
@@ -42,5 +42,8 @@
   "tooltip.blueprintforge.result.from": "Из чертежа, %s",
   "gui.blueprintforge.terminal.recorded": "Записано шагов: %s из %s",
   "tooltip.blueprintforge.workpiece.of": "Заготовка: записано шагов %s из %s",
-  "gui.blueprintforge.terminal.ops": "Пресс %s · Обжиг %s"
+  "gui.blueprintforge.terminal.ops": "Пресс %s · Обжиг %s",
+  "gui.blueprintforge.terminal.machine.deployer": "деплоера",
+  "gui.blueprintforge.terminal.cost": "Деплоеры %s: %s",
+  "gui.blueprintforge.terminal.cost.entry": "%sx %s"
 }

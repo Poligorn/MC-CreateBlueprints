@@ -26,7 +26,7 @@
   "gui.blueprintforge.terminal.machine.blast": "fan behind lava",
   "gui.blueprintforge.terminal.last": "Last run: %s%% (%s of %s)",
   "gui.blueprintforge.terminal.last.none": "No runs yet",
-  "gui.blueprintforge.terminal.warning": "Only 100% gives the item, else scrap. The target is always spent.",
+  "gui.blueprintforge.terminal.warning": "Only 100% gives the item, else scrap. The target and the resources fed to deployers are always spent.",
   "gui.blueprintforge.terminal.slot.0": "Blueprint",
   "gui.blueprintforge.terminal.slot.1": "Target item",
   "gui.blueprintforge.terminal.slot.2": "Workpiece / result",
@@ -42,5 +42,8 @@
   "tooltip.blueprintforge.result.from": "From a blueprint, %s",
   "gui.blueprintforge.terminal.recorded": "Recorded steps: %s of %s",
   "tooltip.blueprintforge.workpiece.of": "Workpiece: %s of %s steps recorded",
-  "gui.blueprintforge.terminal.ops": "Press %s · Blast %s"
+  "gui.blueprintforge.terminal.ops": "Press %s · Blast %s",
+  "gui.blueprintforge.terminal.machine.deployer": "deployer",
+  "gui.blueprintforge.terminal.cost": "Deployers %s: %s",
+  "gui.blueprintforge.terminal.cost.entry": "%sx %s"
 }
