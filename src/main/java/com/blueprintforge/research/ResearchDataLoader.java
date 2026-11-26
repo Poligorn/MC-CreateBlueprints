@@ -79,7 +79,7 @@ public final class ResearchDataLoader extends SimplePreparableReloadListener<Res
                 result.tiers().size(), result.targets().size(), result.inactiveTargets().size(), result.errors().size());
     }
 
-    private static Map<ResourceLocation, JsonElement> readDirectory(ResourceManager resourceManager, String directory, List<String> errors) {
+    public static Map<ResourceLocation, JsonElement> readDirectory(ResourceManager resourceManager, String directory, List<String> errors) {
         FileToIdConverter converter = FileToIdConverter.json(directory);
         Map<ResourceLocation, JsonElement> out = new TreeMap<>();
         for (Map.Entry<ResourceLocation, Resource> entry : converter.listMatchingResources(resourceManager).entrySet()) {

@@ -1,0 +1,13 @@
+{
+  "_comment": "DRAFT, not canon. TODO(egor): the set of containers and every number here is a placeholder until Egor approves the Ikaria loot set (open question 20). Ordinary village chests: very rare, T1 only.",
+  "type": "chest",
+  "tables": [
+    "minecraft:chests/village/village_weaponsmith",
+    "minecraft:chests/village/village_toolsmith",
+    "minecraft:chests/village/village_armorer"
+  ],
+  "chance": 0.01,
+  "tier_weights": {
+    "blueprintforge:t1": 1
+  }
+}
