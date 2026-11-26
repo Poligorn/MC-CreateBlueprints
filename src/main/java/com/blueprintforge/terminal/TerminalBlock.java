@@ -142,9 +142,20 @@ public class TerminalBlock extends Block implements EntityBlock {
 
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        // Breaking the upper half breaks the lower one, which holds the drop and the contents; creative mode drops nothing.
-        if (!level.isClientSide && !player.isCreative() && state.getValue(HALF) == DoubleBlockHalf.UPPER) {
-            level.destroyBlock(pos.below(), true, player);
+        // Breaking the upper half breaks the lower one, which holds the drop and the contents. In creative mode the lower
+        // half is removed without loot first, as a door does, or its loss of support would drop the terminal item anyway.
+        // The contents are dropped in both modes by onRemove: vanishing a player's items silently is never wanted.
+        if (!level.isClientSide && state.getValue(HALF) == DoubleBlockHalf.UPPER) {
+            BlockPos lowerPos = pos.below();
+            BlockState lower = level.getBlockState(lowerPos);
+            if (lower.is(this) && lower.getValue(HALF) == DoubleBlockHalf.LOWER) {
+                if (player.isCreative()) {
+                    level.setBlock(lowerPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+                    level.levelEvent(player, 2001, lowerPos, Block.getId(lower));
+                } else {
+                    level.destroyBlock(lowerPos, true, player);
+                }
+            }
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
