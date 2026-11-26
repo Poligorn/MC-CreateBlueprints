@@ -1,0 +1,20 @@
+{
+  "_comment": "DRAFT, not canon. TODO(egor): placeholder vanilla structures and numbers until the Ikaria loot set is approved (open questions 20 and 21). Tier shifted towards T2-T3. No modpack structures are listed on purpose.",
+  "type": "chest",
+  "tables": [
+    "minecraft:chests/ancient_city",
+    "minecraft:chests/end_city_treasure",
+    "minecraft:chests/bastion_treasure",
+    "minecraft:chests/bastion_other",
+    "minecraft:chests/stronghold_corridor",
+    "minecraft:chests/stronghold_crossing",
+    "minecraft:chests/stronghold_library",
+    "minecraft:chests/woodland_mansion"
+  ],
+  "chance": 0.15,
+  "tier_weights": {
+    "blueprintforge:t1": 30,
+    "blueprintforge:t2": 50,
+    "blueprintforge:t3": 20
+  }
+}

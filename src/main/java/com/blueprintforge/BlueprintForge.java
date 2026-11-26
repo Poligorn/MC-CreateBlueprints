@@ -4,15 +4,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blueprintforge.compat.createapi.CreateSpike;
+import com.blueprintforge.loot.BlueprintSourceLoader;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.registry.BFCreativeTabs;
 import com.blueprintforge.registry.BFItems;
+import com.blueprintforge.registry.BFLootModifiers;
 import com.blueprintforge.registry.BFMenus;
 import com.blueprintforge.research.ResearchDataLoader;
 import com.blueprintforge.terminal.TerminalBlockEntity;
 
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -25,13 +29,15 @@ public final class BlueprintForge {
     public static final String MOD_ID = "blueprintforge";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public BlueprintForge(IEventBus modBus) {
+    public BlueprintForge(IEventBus modBus, ModContainer container) {
         BFComponents.COMPONENTS.register(modBus);
         BFBlocks.BLOCKS.register(modBus);
         BFBlocks.BLOCK_ENTITIES.register(modBus);
         BFItems.ITEMS.register(modBus);
         BFMenus.MENUS.register(modBus);
         BFCreativeTabs.TABS.register(modBus);
+        BFLootModifiers.SERIALIZERS.register(modBus);
+        container.registerConfig(ModConfig.Type.SERVER, BFConfig.SPEC, BFConfig.FILE_NAME);
         modBus.addListener(BlueprintForge::registerCapabilities);
 
         NeoForge.EVENT_BUS.addListener(BlueprintForge::addReloadListeners);
@@ -44,6 +50,7 @@ public final class BlueprintForge {
 
     private static void addReloadListeners(AddReloadListenerEvent event) {
         event.addListener(new ResearchDataLoader(event.getRegistryAccess()));
+        event.addListener(new BlueprintSourceLoader());
     }
 
     private static void registerCapabilities(RegisterCapabilitiesEvent event) {

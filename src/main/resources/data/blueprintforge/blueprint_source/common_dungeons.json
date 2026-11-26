@@ -1,0 +1,17 @@
+{
+  "_comment": "DRAFT, not canon. TODO(egor): placeholder vanilla dungeons and numbers until the Ikaria loot set is approved (open questions 20 and 21). Mostly T1, rarely T2.",
+  "type": "chest",
+  "tables": [
+    "minecraft:chests/simple_dungeon",
+    "minecraft:chests/abandoned_mineshaft",
+    "minecraft:chests/desert_pyramid",
+    "minecraft:chests/jungle_temple",
+    "minecraft:chests/pillager_outpost",
+    "minecraft:chests/shipwreck_treasure"
+  ],
+  "chance": 0.1,
+  "tier_weights": {
+    "blueprintforge:t1": 85,
+    "blueprintforge:t2": 15
+  }
+}
