@@ -1,6 +1,7 @@
 package com.blueprintforge.terminal;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.jetbrains.annotations.Nullable;
@@ -9,6 +10,8 @@ import com.blueprintforge.compat.createapi.SpikeLine;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.registry.BFItems;
+import com.blueprintforge.research.AttemptCost;
+import com.blueprintforge.research.ChainStep;
 import com.blueprintforge.research.ResearchBlueprint;
 import com.blueprintforge.research.ResearchChain;
 import com.blueprintforge.research.ResearchRegistry;
@@ -56,7 +59,11 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     public static final int DATA_FLAGS = 8;
     public static final int DATA_SPRITE_TIER = 9;
     public static final int DATA_LAST_RECORDED = 10;
-    public static final int DATA_COUNT = 11;
+    public static final int DATA_DEPLOY = 11;
+    /** Pairs of (item raw id, total count) of the attempt cost, sorted by item id; no order of steps in them. */
+    public static final int DATA_COST = 12;
+    public static final int MAX_COST_ITEMS = 6;
+    public static final int DATA_COUNT = DATA_COST + 2 * MAX_COST_ITEMS;
 
     public static final int FLAG_BLUEPRINT = 1;
     public static final int FLAG_UNKNOWN_TIER = 2;
@@ -64,6 +71,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
 
     private static final String PRESS = "press";
     private static final String BLAST = "blast";
+    private static final String DEPLOY = "deploy";
 
     private final TerminalSlots inventory = new TerminalSlots() {
         @Override
@@ -116,6 +124,8 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     private int press;
     private int blast;
     private int other;
+    private int deploy;
+    private int[] cost = new int[2 * MAX_COST_ITEMS];
     private int flags;
     private int missing;
     private int lastPercent = -1;
@@ -131,6 +141,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
                 case DATA_PRESS -> press;
                 case DATA_BLAST -> blast;
                 case DATA_OTHER -> other;
+                case DATA_DEPLOY -> deploy;
                 case DATA_PERCENT -> lastPercent;
                 case DATA_MATCHED -> lastMatched;
                 case DATA_TOTAL -> lastTotal;
@@ -138,7 +149,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
                 case DATA_MISSING -> missing;
                 case DATA_FLAGS -> flags;
                 case DATA_SPRITE_TIER -> blueprint().map(ResearchBlueprint::spriteTier).orElse(0);
-                default -> 0;
+                default -> index >= DATA_COST && index < DATA_COUNT ? cost[index - DATA_COST] : 0;
             };
         }
 
@@ -212,8 +223,13 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         }
     }
 
-    /** The chain of the blueprint in the slot, empty while there is no blueprint, no seed or no known tier. */
+    /** Operation ids of the chain, one per step, see {@link #steps()}. */
     public List<ResourceLocation> chain() {
+        return steps().stream().map(ChainStep::operation).toList();
+    }
+
+    /** The chain of the blueprint in the slot, empty while there is no blueprint, no seed or no known tier. */
+    public List<ChainStep> steps() {
         ResearchBlueprint bp = blueprint().orElse(null);
         if (bp == null || bp.seed().isEmpty()) {
             return List.of();
@@ -223,7 +239,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
             return List.of();
         }
         try {
-            return ResearchChain.generate(bp.seed().get(), tier, bp.generatorVersion());
+            return ResearchChain.steps(bp.seed().get(), tier, bp.generatorVersion());
         } catch (IllegalArgumentException e) {
             return List.of();
         }
@@ -232,7 +248,8 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
     private void refresh() {
         ResearchBlueprint bp = blueprint().orElse(null);
         flags = 0;
-        steps = press = blast = other = 0;
+        steps = press = blast = other = deploy = 0;
+        cost = new int[2 * MAX_COST_ITEMS];
         if (bp == null) {
             missing = 0;
             return;
@@ -244,14 +261,25 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         if (bp.seed().isEmpty()) {
             flags |= FLAG_NO_SEED;
         }
-        List<ResourceLocation> chain = chain();
+        List<ChainStep> chain = steps();
         steps = chain.size();
-        for (ResourceLocation operation : chain) {
-            switch (operation.getPath()) {
+        for (ChainStep step : chain) {
+            switch (step.operation().getPath()) {
                 case PRESS -> press++;
                 case BLAST -> blast++;
+                case DEPLOY -> deploy++;
                 default -> other++;
             }
+        }
+        // The cost is a price, not a hint to the order: totals per item, sorted by item id.
+        int slot = 0;
+        for (Map.Entry<ResourceLocation, Integer> total : AttemptCost.totals(chain).entrySet()) {
+            if (slot >= MAX_COST_ITEMS) {
+                break;
+            }
+            cost[2 * slot] = BuiltInRegistries.ITEM.getId(BuiltInRegistries.ITEM.get(total.getKey()));
+            cost[2 * slot + 1] = total.getValue();
+            slot++;
         }
     }
 
@@ -259,7 +287,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         if (level == null || level.isClientSide) {
             return;
         }
-        missing = blueprint().isPresent() ? LineScanner.missing(level, worldPosition, press > 0, blast > 0) : 0;
+        missing = blueprint().isPresent() ? LineScanner.missing(level, worldPosition, press > 0, blast > 0, deploy > 0) : 0;
     }
 
     /** Called by the open menu on the server every tick; the scan itself runs twice a second at most. */
@@ -329,7 +357,7 @@ public class TerminalBlockEntity extends BlockEntity implements MenuProvider {
         }
         List<String> expected;
         try {
-            expected = ResearchChain.generate(run.seed(), tier, run.generatorVersion()).stream().map(ResourceLocation::getPath).toList();
+            expected = ResearchChain.steps(run.seed(), tier, run.generatorVersion()).stream().map(ChainStep::key).toList();
         } catch (IllegalArgumentException e) {
             return Component.translatable("gui.blueprintforge.terminal.error.no_chain");
         }

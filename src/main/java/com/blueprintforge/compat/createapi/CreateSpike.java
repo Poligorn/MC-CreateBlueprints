@@ -26,5 +26,6 @@ public final class CreateSpike {
         SpikeComponents.COMPONENTS.register(modBus);
         FAN_TYPES.register(modBus);
         SpikePressHook.register(gameBus);
+        SpikeDeployerHook.register(gameBus);
     }
 }

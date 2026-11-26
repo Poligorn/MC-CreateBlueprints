@@ -20,20 +20,31 @@ public final class LineScanner {
     public static final int RADIUS = 16;
     public static final int PRESS = 1;
     public static final int BLAST = 2;
+    public static final int DEPLOYER = 4;
 
     private LineScanner() {
     }
 
     /** Bits of the machines that are needed and not found. Unloaded chunks are never loaded by the scan. */
     public static int missing(Level level, BlockPos origin, boolean needPress, boolean needBlast) {
-        return missing(level, origin, needPress, needBlast, RADIUS);
+        return missing(level, origin, needPress, needBlast, false, RADIUS);
+    }
+
+    /** Same with the deployer a chain with hand-fed steps needs. */
+    public static int missing(Level level, BlockPos origin, boolean needPress, boolean needBlast, boolean needDeployer) {
+        return missing(level, origin, needPress, needBlast, needDeployer, RADIUS);
     }
 
     /** The radius is a parameter so a test can keep the scan inside its own scene. */
     public static int missing(Level level, BlockPos origin, boolean needPress, boolean needBlast, int radius) {
+        return missing(level, origin, needPress, needBlast, false, radius);
+    }
+
+    public static int missing(Level level, BlockPos origin, boolean needPress, boolean needBlast, boolean needDeployer, int radius) {
         boolean press = !needPress;
         boolean blast = !needBlast;
-        if (press && blast) {
+        boolean deployer = !needDeployer;
+        if (press && blast && deployer) {
             return 0;
         }
         for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-radius, -radius, -radius), origin.offset(radius, radius, radius))) {
@@ -45,12 +56,14 @@ public final class LineScanner {
                 press = true;
             } else if (!blast && AllBlocks.ENCASED_FAN.has(state) && blastsInFront(level, pos, state)) {
                 blast = true;
+            } else if (!deployer && AllBlocks.DEPLOYER.has(state)) {
+                deployer = true;
             }
-            if (press && blast) {
+            if (press && blast && deployer) {
                 return 0;
             }
         }
-        return (press ? 0 : PRESS) | (blast ? 0 : BLAST);
+        return (press ? 0 : PRESS) | (blast ? 0 : BLAST) | (deployer ? 0 : DEPLOYER);
     }
 
     private static boolean blastsInFront(Level level, BlockPos fan, BlockState state) {

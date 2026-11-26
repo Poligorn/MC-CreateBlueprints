@@ -63,5 +63,10 @@
   "gui.blueprintforge.terminal.research.none": "Исследование: прогонов нет",
   "gui.blueprintforge.terminal.solved": "Цепочка разгадана. Результат готов.",
   "gui.blueprintforge.terminal.tab.research": "Исследование",
-  "gui.blueprintforge.terminal.tab.copies": "Копии"
+  "gui.blueprintforge.terminal.tab.copies": "Копии",
+  "gui.blueprintforge.terminal.machine.deployer": "Деплоер",
+  "gui.blueprintforge.terminal.cost.entry": "%sx %s",
+  "gui.blueprintforge.terminal.ops.deploy": "Деплоер",
+  "gui.blueprintforge.terminal.cost.title": "Цена попытки, тратится каждый раз:",
+  "gui.blueprintforge.terminal.tab.copies.locked": "Копии: будут в 0.2"
 }

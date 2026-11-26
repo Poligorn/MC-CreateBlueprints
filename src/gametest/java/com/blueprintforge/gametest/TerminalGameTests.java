@@ -8,6 +8,7 @@ import com.blueprintforge.item.ResearchBlueprintItem;
 import com.blueprintforge.registry.BFBlocks;
 import com.blueprintforge.registry.BFComponents;
 import com.blueprintforge.registry.BFItems;
+import com.blueprintforge.research.ChainStep;
 import com.blueprintforge.research.ResearchBlueprint;
 import com.blueprintforge.research.ResearchChain;
 import com.blueprintforge.research.ResearchRegistry;
@@ -87,7 +88,7 @@ public final class TerminalGameTests {
     }
 
     private static List<String> chainOf(TerminalBlockEntity be) {
-        return be.chain().stream().map(ResourceLocation::getPath).toList();
+        return be.steps().stream().map(ChainStep::key).toList();
     }
 
     @GameTest(template = EMPTY)
@@ -102,9 +103,9 @@ public final class TerminalGameTests {
         helper.assertTrue(helper.getBlockState(TERMINAL).getValue(TerminalBlock.SCREEN) == TerminalScreenState.ACTIVE, "a blueprint lights the screen");
         int steps = be.chain().size();
         ResearchTier tier = ResearchRegistry.tier(T3).orElseThrow();
-        helper.assertTrue(steps >= tier.steps().min() && steps <= tier.steps().max(), "steps within the tier range, got " + steps);
+        helper.assertTrue(steps >= tier.steps().min() + tier.attemptCost().deployers().min() && steps <= tier.steps().max() + tier.attemptCost().deployers().max(), "steps within the tier range plus deployers, got " + steps);
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_STEPS) == steps, "the menu data reports the step count");
-        helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PRESS) + be.data.get(TerminalBlockEntity.DATA_BLAST) + be.data.get(TerminalBlockEntity.DATA_OTHER) == steps,
+        helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_PRESS) + be.data.get(TerminalBlockEntity.DATA_BLAST) + be.data.get(TerminalBlockEntity.DATA_DEPLOY) + be.data.get(TerminalBlockEntity.DATA_OTHER) == steps,
                 "operation counts add up to the steps");
 
         // Taking the blueprint out and putting it back keeps the seed, so the chain does not change.
@@ -258,7 +259,7 @@ public final class TerminalGameTests {
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_MISSING) == 0, "no blueprint, nothing is missing");
         insertBlueprint(helper, be, T3);
         int missing = be.data.get(TerminalBlockEntity.DATA_MISSING);
-        helper.assertTrue((missing & ~(LineScanner.PRESS | LineScanner.BLAST)) == 0, "only the two known machines can be reported, got " + missing);
+        helper.assertTrue((missing & ~(LineScanner.PRESS | LineScanner.BLAST | LineScanner.DEPLOYER)) == 0, "only the three known machines can be reported, got " + missing);
         be.inventory().extractItem(TerminalSlots.BLUEPRINT, 1, false);
         helper.assertTrue(be.data.get(TerminalBlockEntity.DATA_MISSING) == 0, "taking the blueprint out clears the report");
         helper.succeed();

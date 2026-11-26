@@ -63,5 +63,10 @@
   "gui.blueprintforge.terminal.research.none": "Research: no runs yet",
   "gui.blueprintforge.terminal.solved": "Chain solved. The result is ready.",
   "gui.blueprintforge.terminal.tab.research": "Research",
-  "gui.blueprintforge.terminal.tab.copies": "Copies"
+  "gui.blueprintforge.terminal.tab.copies": "Copies",
+  "gui.blueprintforge.terminal.machine.deployer": "Deployer",
+  "gui.blueprintforge.terminal.cost.entry": "%sx %s",
+  "gui.blueprintforge.terminal.ops.deploy": "Deployer",
+  "gui.blueprintforge.terminal.cost.title": "Attempt cost, spent every time:",
+  "gui.blueprintforge.terminal.tab.copies.locked": "Copies: coming in 0.2"
 }

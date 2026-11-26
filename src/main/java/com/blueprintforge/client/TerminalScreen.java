@@ -3,6 +3,8 @@ package com.blueprintforge.client;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.blueprintforge.compat.createapi.SpikeLine;
 import com.blueprintforge.item.ResearchBlueprintItem;
 import com.blueprintforge.registry.BFComponents;
@@ -23,6 +25,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -126,7 +129,9 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        if (hoveredSlot != null && !hoveredSlot.hasItem() && hoveredSlot.index < TerminalSlots.COUNT) {
+        if (mouseX >= leftPos + 234 && mouseX < leftPos + 277 && mouseY >= topPos + 7 && mouseY < topPos + 18) {
+            graphics.renderTooltip(font, Component.translatable("gui.blueprintforge.terminal.tab.copies.locked"), mouseX, mouseY);
+        } else if (hoveredSlot != null && !hoveredSlot.hasItem() && hoveredSlot.index < TerminalSlots.COUNT) {
             graphics.renderTooltip(font, Component.translatable("gui.blueprintforge.terminal.slot." + hoveredSlot.index), mouseX, mouseY);
         } else {
             renderTooltip(graphics, mouseX, mouseY);
@@ -204,7 +209,12 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         bevel(graphics, x + 144, y + 5, 87, 13, STEEL);
         graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.tab.research"), x + 150, y + 8, LABEL, false);
         bevel(graphics, x + 234, y + 7, 43, 11, STEEL_DEEP);
-        graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.tab.copies"), x + 239, y + 9, STEEL_DARK, false);
+        graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.tab.copies"), x + 238, y + 9, STEEL_DARK, false);
+        // A padlock: the copies tab is a locked placeholder of 0.2 and does nothing.
+        rect(graphics, x + 267, y + 12, 6, 4, STEEL_DARK);
+        rect(graphics, x + 268, y + 9, 1, 3, STEEL_DARK);
+        rect(graphics, x + 271, y + 9, 1, 3, STEEL_DARK);
+        rect(graphics, x + 268, y + 9, 4, 1, STEEL_DARK);
         boolean hasBlueprint = (menu.data(TerminalBlockEntity.DATA_FLAGS) & TerminalBlockEntity.FLAG_BLUEPRINT) != 0;
         boolean lacks = hasBlueprint && menu.data(TerminalBlockEntity.DATA_MISSING) != 0;
         lamp(graphics, x + 335, y + 9, GREEN, true);
@@ -312,6 +322,32 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
 
     // ---------------------------------------------------------------------------------------------------------------
 
+    /** Paints one column of the CRT; {@code graphics} is null for a dry run that only measures. Returns the height used. */
+    private interface Painter {
+        int paint(@Nullable GuiGraphics graphics, int x, int y, int width);
+    }
+
+    private static final float[] SCALES = {1.0F, 0.9F, 0.8F, 0.7F, 0.6F};
+
+    /**
+     * Draws a column at the largest text scale that keeps it inside the CRT: Russian strings and a long cost list are
+     * wrapped to the width first and the whole column shrinks only when the height still does not fit.
+     */
+    private void drawColumn(GuiGraphics graphics, int x, int y, int width, int height, Painter painter) {
+        float scale = SCALES[SCALES.length - 1];
+        for (float candidate : SCALES) {
+            if (painter.paint(null, 0, 0, (int) (width / candidate)) * candidate <= height) {
+                scale = candidate;
+                break;
+            }
+        }
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(scale, scale, 1F);
+        painter.paint(graphics, 0, 0, (int) (width / scale));
+        graphics.pose().popPose();
+    }
+
     private void drawScreen(GuiGraphics graphics, int x, int y) {
         bevel(graphics, x + CRT_X - 3, y + CRT_Y - 3, CRT_W + 6, CRT_H + 6, STEEL_LIGHT);
         rect(graphics, x + CRT_X, y + CRT_Y, CRT_W, CRT_H, CRT);
@@ -327,72 +363,133 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
             graphics.disableScissor();
             return;
         }
-        drawLeftColumn(graphics, x + CRT_X + 6, y + CRT_Y + 4, DIVIDER_X - CRT_X - 12, blueprint);
-        drawRightColumn(graphics, x + DIVIDER_X + 6, y + CRT_Y + 4, CRT_X + CRT_W - DIVIDER_X - 10);
+        drawColumn(graphics, x + CRT_X + 6, y + CRT_Y + 4, DIVIDER_X - CRT_X - 12, CRT_H - 8,
+                (g, cx, cy, width) -> paintLeftColumn(g, cx, cy, width, blueprint));
+        drawColumn(graphics, x + DIVIDER_X + 6, y + CRT_Y + 4, CRT_X + CRT_W - DIVIDER_X - 10, CRT_H - 8, this::paintRightColumn);
         graphics.disableScissor();
     }
 
-    private void drawLeftColumn(GuiGraphics graphics, int x, int y, int width, ResearchBlueprint blueprint) {
-        ItemStack icon = new ItemStack(BuiltInRegistries.ITEM.get(blueprint.item()));
-        graphics.renderItem(icon, x, y);
-        Component name = ResearchBlueprintItem.targetName(blueprint.item());
-        graphics.drawString(font, name, x + 20, y + 1, GREEN, false);
-        int tierColour = TIER_COLORS[Math.max(0, Math.min(4, blueprint.spriteTier() - 1))];
-        Component tier = ResearchBlueprintItem.tierName(blueprint.tier());
-        int badgeWidth = font.width(tier) + 6;
-        rect(graphics, x + width - badgeWidth, y, badgeWidth, 10, tierColour);
-        rect(graphics, x + width - badgeWidth + 1, y + 1, badgeWidth - 2, 8, CRT);
-        graphics.drawString(font, tier, x + width - badgeWidth + 3, y + 1, tierColour, false);
-        graphics.drawString(font, Component.translatable(blueprint.copy() ? "gui.blueprintforge.terminal.copy" : "gui.blueprintforge.terminal.original"),
-                x + 20, y + 11, blueprint.copy() ? AMBER : GREEN, false);
-        int line = y + 26;
-        rect(graphics, x, line - 4, width, 1, GREEN_GHOST);
-        graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.hidden"), x, line, GREEN_DIM, false);
-        line += 16;
-        graphics.renderItem(icon, x, line - 3);
-        graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.start", name), x + 20, line + 1, GREEN, false);
-        line += 18;
-        for (FormattedCharSequence part : font.split(Component.translatable("gui.blueprintforge.terminal.start.note"), width)) {
-            graphics.drawString(font, part, x, line, GREEN_DIM, false);
-            line += 9;
+    private void text(@Nullable GuiGraphics graphics, FormattedCharSequence text, int x, int y, int colour) {
+        if (graphics != null) {
+            graphics.drawString(font, text, x, y, colour, false);
         }
     }
 
-    private void drawRightColumn(GuiGraphics graphics, int x, int y, int width) {
+    private void text(@Nullable GuiGraphics graphics, Component text, int x, int y, int colour) {
+        if (graphics != null) {
+            graphics.drawString(font, text, x, y, colour, false);
+        }
+    }
+
+    private void fill(@Nullable GuiGraphics graphics, int x, int y, int w, int h, int colour) {
+        if (graphics != null) {
+            rect(graphics, x, y, w, h, colour);
+        }
+    }
+
+    private void icon(@Nullable GuiGraphics graphics, ItemStack stack, int x, int y) {
+        if (graphics != null) {
+            graphics.renderItem(stack, x, y);
+        }
+    }
+
+    /** Wraps a component to the width and returns the y after the last line. */
+    private int wrapped(@Nullable GuiGraphics graphics, Component component, int x, int y, int width, int colour) {
+        for (FormattedCharSequence part : font.split(component, width)) {
+            text(graphics, part, x, y, colour);
+            y += 9;
+        }
+        return y;
+    }
+
+    private int paintLeftColumn(@Nullable GuiGraphics graphics, int x, int y, int width, ResearchBlueprint blueprint) {
+        int top = y;
+        ItemStack icon = new ItemStack(BuiltInRegistries.ITEM.get(blueprint.item()));
+        icon(graphics, icon, x, y);
+        Component name = ResearchBlueprintItem.targetName(blueprint.item());
+        Component tier = ResearchBlueprintItem.tierName(blueprint.tier());
+        int badgeWidth = font.width(tier) + 6;
+        int tierColour = TIER_COLORS[Math.max(0, Math.min(4, blueprint.spriteTier() - 1))];
+        fill(graphics, x + width - badgeWidth, y, badgeWidth, 10, tierColour);
+        fill(graphics, x + width - badgeWidth + 1, y + 1, badgeWidth - 2, 8, CRT);
+        text(graphics, tier, x + width - badgeWidth + 3, y + 1, tierColour);
+        // The name takes what the badge leaves and wraps into the second line before it would run under the badge.
+        int nameY = y + 1;
+        for (FormattedCharSequence part : font.split(name, width - 20 - badgeWidth - 4)) {
+            text(graphics, part, x + 20, nameY, GREEN);
+            nameY += 9;
+        }
+        Component kind = Component.translatable(blueprint.copy() ? "gui.blueprintforge.terminal.copy" : "gui.blueprintforge.terminal.original");
+        text(graphics, kind, x + 20, nameY, blueprint.copy() ? AMBER : GREEN);
+        y = Math.max(y + 22, nameY + 11) + 3;
+        fill(graphics, x, y - 4, width, 1, GREEN_GHOST);
+        y = wrapped(graphics, Component.translatable("gui.blueprintforge.terminal.hidden"), x, y, width, GREEN_DIM) + 3;
+        icon(graphics, icon, x, y - 3);
+        text(graphics, Component.translatable("gui.blueprintforge.terminal.start", name), x + 20, y + 1, GREEN);
+        y += 18;
+        y = wrapped(graphics, Component.translatable("gui.blueprintforge.terminal.start.note"), x, y, width, GREEN_DIM);
+        return paintCost(graphics, x, y + 2, width) - top;
+    }
+
+    /**
+     * What an attempt costs besides the target: the resources the deployers take, as totals per item and never in the
+     * order of the steps. Shown only when the chain has deployer steps.
+     */
+    private int paintCost(@Nullable GuiGraphics graphics, int x, int y, int width) {
+        if (menu.data(TerminalBlockEntity.DATA_DEPLOY) == 0) {
+            return y;
+        }
+        fill(graphics, x, y, width, 1, GREEN_GHOST);
+        y += 4;
+        y = wrapped(graphics, Component.translatable("gui.blueprintforge.terminal.cost.title"), x, y, width, AMBER);
+        for (int i = 0; i < TerminalBlockEntity.MAX_COST_ITEMS; i++) {
+            int count = menu.data(TerminalBlockEntity.DATA_COST + 2 * i + 1);
+            if (count <= 0) {
+                continue;
+            }
+            Item item = BuiltInRegistries.ITEM.byId(menu.data(TerminalBlockEntity.DATA_COST + 2 * i));
+            y = wrapped(graphics, Component.translatable("gui.blueprintforge.terminal.cost.entry", count, item.getDescription()), x + 6, y, width - 6, AMBER);
+        }
+        return y;
+    }
+
+    private int paintRightColumn(@Nullable GuiGraphics graphics, int x, int y, int width) {
+        int top = y;
         int flags = menu.data(TerminalBlockEntity.DATA_FLAGS);
         if ((flags & TerminalBlockEntity.FLAG_UNKNOWN_TIER) != 0) {
-            graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.unknown_tier"), x, y + 1, RED, false);
-            return;
+            return wrapped(graphics, Component.translatable("gui.blueprintforge.terminal.unknown_tier"), x, y + 1, width, RED) - top;
         }
-        graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.steps", menu.data(TerminalBlockEntity.DATA_STEPS)), x, y + 1, GREEN, false);
-        int line = y + 14;
-        line = opRow(graphics, x, line, width, new ItemStack(AllBlocks.MECHANICAL_PRESS.get()), "press", menu.data(TerminalBlockEntity.DATA_PRESS));
-        line = opRow(graphics, x, line, width, new ItemStack(AllBlocks.ENCASED_FAN.get()), "blast", menu.data(TerminalBlockEntity.DATA_BLAST));
+        text(graphics, Component.translatable("gui.blueprintforge.terminal.steps", menu.data(TerminalBlockEntity.DATA_STEPS)), x, y + 1, GREEN);
+        y += 14;
+        y = opRow(graphics, x, y, width, new ItemStack(AllBlocks.MECHANICAL_PRESS.get()), "press", menu.data(TerminalBlockEntity.DATA_PRESS));
+        y = opRow(graphics, x, y, width, new ItemStack(AllBlocks.ENCASED_FAN.get()), "blast", menu.data(TerminalBlockEntity.DATA_BLAST));
+        if (menu.data(TerminalBlockEntity.DATA_DEPLOY) > 0) {
+            y = opRow(graphics, x, y, width, new ItemStack(AllBlocks.DEPLOYER.get()), "deploy", menu.data(TerminalBlockEntity.DATA_DEPLOY));
+        }
         if (menu.data(TerminalBlockEntity.DATA_OTHER) > 0) {
-            line = opRow(graphics, x, line, width, ItemStack.EMPTY, "other", menu.data(TerminalBlockEntity.DATA_OTHER));
+            y = opRow(graphics, x, y, width, ItemStack.EMPTY, "other", menu.data(TerminalBlockEntity.DATA_OTHER));
         }
-        rect(graphics, x, line + 1, width, 1, GREEN_GHOST);
-        line += 5;
+        fill(graphics, x, y + 1, width, 1, GREEN_GHOST);
+        y += 5;
 
         int percent = menu.data(TerminalBlockEntity.DATA_PERCENT);
         Component research = percent < 0 ? Component.translatable("gui.blueprintforge.terminal.research.none")
                 : Component.translatable("gui.blueprintforge.terminal.research", percent);
-        graphics.drawString(font, research, x, line, percent >= 100 ? GREEN : percent < 0 ? GREEN_DIM : AMBER, false);
-        line += 10;
+        y = wrapped(graphics, research, x, y, width, percent >= 100 ? GREEN : percent < 0 ? GREEN_DIM : AMBER) + 1;
         int total = Math.max(1, menu.data(TerminalBlockEntity.DATA_TOTAL));
         int matched = percent < 0 ? 0 : menu.data(TerminalBlockEntity.DATA_MATCHED);
         int barWidth = width - 26;
-        rect(graphics, x, line, barWidth, 6, GREEN_GHOST);
+        fill(graphics, x, y, barWidth, 6, GREEN_GHOST);
         int segments = Math.min(total, 16);
         for (int i = 0; i < segments; i++) {
             int segmentX = x + 1 + i * (barWidth - 2) / segments;
             int segmentWidth = Math.max(1, (barWidth - 2) / segments - 1);
             if (i * total / segments < matched) {
-                rect(graphics, segmentX, line + 1, segmentWidth, 4, percent >= 100 ? GREEN : AMBER);
+                fill(graphics, segmentX, y + 1, segmentWidth, 4, percent >= 100 ? GREEN : AMBER);
             }
         }
-        graphics.drawString(font, percent < 0 ? "-/" + menu.data(TerminalBlockEntity.DATA_STEPS) : matched + "/" + total, x + barWidth + 3, line - 1, GREEN_DIM, false);
-        line += 10;
+        text(graphics, percent < 0 ? "-/" + menu.data(TerminalBlockEntity.DATA_STEPS) : matched + "/" + total, x + barWidth + 3, y - 1, GREEN_DIM);
+        y += 10;
 
         // Recorded steps: a workpiece waiting in the item slot shows its count at once, a checked run keeps its count.
         ItemStack workpiece = itemSlot();
@@ -407,44 +504,42 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
             steps = menu.data(TerminalBlockEntity.DATA_TOTAL);
         }
         if (recorded >= 0) {
-            graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.recorded", recorded, steps), x, line,
-                    recorded == steps ? GREEN : AMBER, false);
-            line += 10;
+            y = wrapped(graphics, Component.translatable("gui.blueprintforge.terminal.recorded", recorded, steps), x, y, width, recorded == steps ? GREEN : AMBER) + 1;
         }
         Component status = percent >= 100 && !menu.getSlot(TerminalSlots.OUTPUT).getItem().isEmpty()
                 ? Component.translatable("gui.blueprintforge.terminal.solved") : Component.translatable("gui.blueprintforge.terminal.warning");
-        int statusColour = percent >= 100 ? GREEN : RED;
-        for (FormattedCharSequence part : font.split(status, width)) {
-            graphics.drawString(font, part, x, line, statusColour, false);
-            line += 9;
-        }
-        rect(graphics, x, line + 1, width, 1, GREEN_GHOST);
-        line += 5;
-        drawLine(graphics, x, line, width);
+        y = wrapped(graphics, status, x, y, width, percent >= 100 ? GREEN : RED);
+        fill(graphics, x, y + 1, width, 1, GREEN_GHOST);
+        return paintLine(graphics, x, y + 5, width) - top;
     }
 
-    private int opRow(GuiGraphics graphics, int x, int y, int width, ItemStack icon, String key, int count) {
-        if (!icon.isEmpty()) {
+    private int opRow(@Nullable GuiGraphics graphics, int x, int y, int width, ItemStack icon, String key, int count) {
+        if (graphics != null && !icon.isEmpty()) {
             graphics.pose().pushPose();
             graphics.pose().translate(x, y, 0);
             graphics.pose().scale(0.5F, 0.5F, 1F);
             graphics.renderItem(icon, 0, 0);
             graphics.pose().popPose();
         }
-        graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.ops." + key), x + 11, y, GREEN, false);
+        text(graphics, Component.translatable("gui.blueprintforge.terminal.ops." + key), x + 11, y, GREEN);
         String times = "×" + count;
-        graphics.drawString(font, times, x + width - font.width(times), y, GREEN, false);
+        text(graphics, times, x + width - font.width(times), y, GREEN);
         return y + 10;
     }
 
+    private void text(@Nullable GuiGraphics graphics, String text, int x, int y, int colour) {
+        if (graphics != null) {
+            graphics.drawString(font, text, x, y, colour, false);
+        }
+    }
+
     /** "What the line lacks": the machines the chain needs and the scan around the terminal did not find. */
-    private void drawLine(GuiGraphics graphics, int x, int y, int width) {
+    private int paintLine(@Nullable GuiGraphics graphics, int x, int y, int width) {
         int missing = menu.data(TerminalBlockEntity.DATA_MISSING);
         if (missing == 0) {
-            graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.line.ok"), x, y, GREEN, false);
-            return;
+            return wrapped(graphics, Component.translatable("gui.blueprintforge.terminal.line.ok"), x, y, width, GREEN);
         }
-        graphics.drawString(font, Component.translatable("gui.blueprintforge.terminal.line.missing"), x, y, AMBER, false);
+        text(graphics, Component.translatable("gui.blueprintforge.terminal.line.missing"), x, y, AMBER);
         List<String> names = new ArrayList<>();
         if ((missing & LineScanner.PRESS) != 0) {
             names.add("press");
@@ -452,13 +547,17 @@ public class TerminalScreen extends AbstractContainerScreen<TerminalMenu> {
         if ((missing & LineScanner.BLAST) != 0) {
             names.add("blast");
         }
+        if ((missing & LineScanner.DEPLOYER) != 0) {
+            names.add("deployer");
+        }
         int line = y + 10;
         for (String name : names) {
-            graphics.drawString(font, "× ", x, line, RED, false);
+            text(graphics, "× ", x, line, RED);
             for (FormattedCharSequence part : font.split(Component.translatable("gui.blueprintforge.terminal.machine." + name), width - 10)) {
-                graphics.drawString(font, part, x + 9, line, RED, false);
+                text(graphics, part, x + 9, line, RED);
                 line += 9;
             }
         }
+        return line;
     }
 }
